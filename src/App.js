@@ -1,28 +1,30 @@
-import React, { Component } from 'react'
-import logo from './logo.svg'
-import './App.css'
+import React, { useState } from 'react'
+import Map from './components/Map'
+import style from './style/App/App.module.css'
 
-class App extends Component {
-  render () {
-    return (
-      <div className='App'>
-        <header className='App-header'>
-          <img src={logo} className='App-logo' alt='logo' />
-          <p>
-            Edit <code>src/App.js</code> and save to reload.
-          </p>
-          <a
-            className='App-link'
-            href='https://reactjs.org'
-            target='_blank'
-            rel='noopener noreferrer'
-          >
-            Learn React
-          </a>
-        </header>
-      </div>
-    )
+function App () {
+  const [markerPosition, setMarkerPosition] = useState({
+    lat: 49.8419,
+    lng: 24.0315
+  })
+  const { lat, lng } = markerPosition
+
+  function moveMarker () {
+    setMarkerPosition({
+      lat: lat + 0.0001,
+      lng: lng + 0.0001
+    })
   }
+
+  return (
+    <div className={style.app}>
+      <Map markerPosition={markerPosition} />
+      <div>
+        Current markerPosition: lat: {lat}, lng: {lng}
+      </div>
+      <button onClick={moveMarker}>Move marker</button>
+    </div>
+  )
 }
 
 export default App
