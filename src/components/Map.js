@@ -5,23 +5,32 @@ import mapSVG from '../images/maps/map02.svg'
 // import ZoomControl from 'react-leaflet/lib/ZoomControl'
 // import AttributionControl from 'react-leaflet/lib/AttributionControl'
 
-const imageBounds = L.latLngBounds([[90, -180], [-90, 180]])
+const mapBounds = L.latLngBounds([[45, -180], [-45, 180]])
+
+const imageBounds = L.latLngBounds([[-120, -200], [120, 200]])
 
 function Map ({ markerPosition }) {
   // create map
   const mapRef = useRef(null)
-  const overlay = L.imageOverlay(mapSVG, imageBounds)
+  const overlay = L.imageOverlay(mapSVG, imageBounds, {
+    opacity: 0.5
+  })
   useEffect(() => {
     mapRef.current = L.map('map', {
-      zoom: 1,
-      minZoom: 1,
       zoomControl: false,
       attributionControl: false,
-      crs: L.CRS.Simple
+      zoomSnap: 0.25,
+      zoom: 2.25,
+      layers: [
+        L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+          attribution:
+            '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+        })
+      ]
     })
 
     mapRef.current.addLayer(overlay)
-    mapRef.current.fitBounds(imageBounds)
+    mapRef.current.fitBounds(mapBounds)
   }, [])
 
   // add marker

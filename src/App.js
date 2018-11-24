@@ -19,10 +19,6 @@ function App () {
   return (
     <div className={style.app}>
       <Map markerPosition={markerPosition} />
-      <div>
-        Current markerPosition: lat: {lat}, lng: {lng}
-      </div>
-      <button onClick={moveMarker}>Move marker</button>
     </div>
   )
 }
