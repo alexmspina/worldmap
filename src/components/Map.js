@@ -1,16 +1,16 @@
 import React, { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import style from '../style/Map/Map.module.css'
+import mapSVG from '../images/maps/map02.svg'
 // import ZoomControl from 'react-leaflet/lib/ZoomControl'
 // import AttributionControl from 'react-leaflet/lib/AttributionControl'
 
-const imageURL = '../images/maps/map02.svg'
-const imageBounds = [[40.712216, -74.22655], [40.773941, -74.12544]]
+const imageBounds = L.latLngBounds([[90, -180], [-90, 180]])
 
 function Map ({ markerPosition }) {
   // create map
   const mapRef = useRef(null)
-  const overlay = L.imageOverlay(imageURL, imageBounds)
+  const overlay = L.imageOverlay(mapSVG, imageBounds)
   useEffect(() => {
     mapRef.current = L.map('map', {
       zoom: 1,
