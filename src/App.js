@@ -4,8 +4,8 @@ import style from './style/App/App.module.css'
 
 function App () {
   const [markerPosition, setMarkerPosition] = useState({
-    lat: 49.8419,
-    lng: 24.0315
+    lat: -60,
+    lng: -170
   })
   const { lat, lng } = markerPosition
 

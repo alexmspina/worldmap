@@ -1,13 +1,32 @@
 import React, { useEffect, useRef } from 'react'
-import L from 'leaflet'
+import * as L from 'leaflet'
 import style from '../style/Map/Map.module.css'
 import mapSVG from '../images/maps/map02.svg'
-// import ZoomControl from 'react-leaflet/lib/ZoomControl'
-// import AttributionControl from 'react-leaflet/lib/AttributionControl'
 
-const mapBounds = L.latLngBounds([[45, -180], [-45, 180]])
+const imageBounds = L.latLngBounds([[-70, -186.5], [82.5, 215.5]])
 
-const imageBounds = L.latLngBounds([[-120, -200], [120, 200]])
+const point = {
+  'type': 'FeatureCollection',
+  'features': [{
+    'type': 'Feature',
+    'geometry': {
+      'type': 'Point',
+      'coordinates': [-5.65, 35.95]
+    },
+    'properties': {
+      'prop0': 'value0'
+    }
+  }]
+}
+
+const geoStyle = {
+  radius: 8,
+  fillColor: '#ff7800',
+  color: '#000',
+  weight: 1,
+  opacity: 1,
+  fillOpacity: 0.8
+}
 
 function Map ({ markerPosition }) {
   // create map
@@ -15,35 +34,26 @@ function Map ({ markerPosition }) {
   const overlay = L.imageOverlay(mapSVG, imageBounds, {
     opacity: 0.5
   })
+
+  const geolayer = L.geoJSON(point, {
+    pointToLayer: function (feature, latlng) {
+      return L.circleMarker(latlng, geoStyle)
+    }
+  })
+
   useEffect(() => {
     mapRef.current = L.map('map', {
       zoomControl: false,
       attributionControl: false,
       zoomSnap: 0.25,
-      zoom: 2.25,
-      layers: [
-        L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
-          attribution:
-            '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-        })
-      ]
+      minZoom: 2.25,
+      boxZoom: true
     })
 
     mapRef.current.addLayer(overlay)
-    mapRef.current.fitBounds(mapBounds)
+    mapRef.current.addLayer(geolayer)
+    mapRef.current.setView([10, 10], 2.25)
   }, [])
-
-  // add marker
-  const markerRef = useRef(null)
-  useEffect(() => {
-    if (markerRef.current) {
-      markerRef.current.setLatLng(markerPosition)
-    } else {
-      markerRef.current = L.marker(markerPosition).addTo(mapRef.current)
-    }
-  },
-  [markerPosition]
-  )
 
   return <div id='map' className={style.map} style={style} />
 }
