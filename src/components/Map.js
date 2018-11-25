@@ -3,7 +3,7 @@ import * as L from 'leaflet'
 import style from '../style/Map/Map.module.css'
 import mapSVG from '../images/maps/map02.svg'
 
-const imageBounds = L.latLngBounds([[-70, -186.5], [82.5, 215.5]])
+const imageBounds = L.latLngBounds([[-70, -188.2], [82.3, 215]])
 
 const point = {
   'type': 'FeatureCollection',
@@ -41,6 +41,11 @@ function Map ({ markerPosition }) {
     }
   })
 
+  const tlayer = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+    attribution:
+    '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+  })
+
   useEffect(() => {
     mapRef.current = L.map('map', {
       zoomControl: false,
@@ -52,6 +57,7 @@ function Map ({ markerPosition }) {
 
     mapRef.current.addLayer(overlay)
     mapRef.current.addLayer(geolayer)
+    mapRef.current.addLayer(tlayer)
     mapRef.current.setView([10, 10], 2.25)
   }, [])
 
