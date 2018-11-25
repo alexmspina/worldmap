@@ -3,7 +3,7 @@ import * as L from 'leaflet'
 import style from '../style/Map/Map.module.css'
 import mapSVG from '../images/maps/map02.svg'
 
-const imageBounds = L.latLngBounds([[-70, -188.2], [82.3, 215]])
+const imageBounds = L.latLngBounds([[-70.85, -187], [82.65, 214.4]])
 
 const point = {
   'type': 'FeatureCollection',
@@ -58,7 +58,7 @@ function Map ({ markerPosition }) {
     mapRef.current.addLayer(overlay)
     mapRef.current.addLayer(geolayer)
     mapRef.current.addLayer(tlayer)
-    mapRef.current.setView([10, 10], 2.25)
+    mapRef.current.setView([35.95, -5.56], 2.25)
   }, [])
 
   return <div id='map' className={style.map} style={style} />
