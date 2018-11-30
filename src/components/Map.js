@@ -1,49 +1,25 @@
 import React, { useEffect, useRef } from 'react'
 import * as L from 'leaflet'
-import style from '../style/Map/Map.module.css'
-import mapSVG from '../images/maps/map02.svg'
+import stylecomponent from '../style/Map/Map.module.css'
+import geoJSONmap from '../files/maps/geoJSONmap.json'
+import stylemap from '../style/Map/stylemap'
+import styletarget from '../style/Targets/styletarget'
+import targetsFile from '../files/targets/TARGETS_275.json'
 
-const imageBounds = L.latLngBounds([[-70.85, -187], [82.65, 214.4]])
-
-const point = {
-  'type': 'FeatureCollection',
-  'features': [{
-    'type': 'Feature',
-    'geometry': {
-      'type': 'Point',
-      'coordinates': [-5.65, 35.95]
-    },
-    'properties': {
-      'prop0': 'value0'
-    }
-  }]
-}
-
-const geoStyle = {
-  radius: 8,
-  fillColor: '#ff7800',
-  color: '#000',
-  weight: 1,
-  opacity: 1,
-  fillOpacity: 0.8
-}
-
-function Map ({ markerPosition }) {
-  // create map
+function Map ({ svgMapBounds }) {
+  // create map reference
   const mapRef = useRef(null)
-  const overlay = L.imageOverlay(mapSVG, imageBounds, {
-    opacity: 0.5
+
+  // create map from geoJSON layer
+  const maplayer = L.geoJSON(geoJSONmap, {
+    style: stylemap
   })
 
-  const geolayer = L.geoJSON(point, {
+  // create target layer from geoJSON files
+  const targetsLayer = L.geoJSON(targetsFile, {
     pointToLayer: function (feature, latlng) {
-      return L.circleMarker(latlng, geoStyle)
+      return L.circleMarker(latlng, styletarget)
     }
-  })
-
-  const tlayer = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
-    attribution:
-    '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
   })
 
   useEffect(() => {
@@ -51,22 +27,17 @@ function Map ({ markerPosition }) {
       zoomControl: false,
       attributionControl: false,
       zoomSnap: 0.25,
-      minZoom: 2.25,
+      minZoom: 2.5,
       boxZoom: true
     })
 
-    mapRef.current.addLayer(overlay)
-    mapRef.current.addLayer(geolayer)
-    mapRef.current.addLayer(tlayer)
-    mapRef.current.setView([35.95, -5.56], 2.25)
+    mapRef.current.addLayer(maplayer)
+    mapRef.current.addLayer(targetsLayer)
+    mapRef.current.setView([0, 0], 2.5)
+    mapRef.current.setMaxBounds(mapRef.current.getBounds())
   }, [])
 
-  return <div id='map' className={style.map} style={style} />
+  return <div id='map' className={stylecomponent.map} style={stylecomponent} />
 }
 
 export default Map
-
-// L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
-//           attribution:
-//             '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-//         })
