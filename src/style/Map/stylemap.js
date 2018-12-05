@@ -3,7 +3,7 @@ const stylemap = {
   color: 'black',
   weight: 1,
   opacity: 1,
-  fillOpacity: 0.8
+  fillOpacity: 1
 }
 
 export default stylemap
