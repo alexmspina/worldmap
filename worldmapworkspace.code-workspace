@@ -1,13 +1,10 @@
 {
 	"folders": [
 		{
-			"path": "server"
-		},
-		{
 			"path": "C:\\Users\\aspina\\01_Projects\\WorldMap\\data"
 		},
 		{
-			"path": "C:\\Users\\aspina\\go\\src\\github.com\\alexmspina\\targets2geoJSON"
+			"path": "C:\\Users\\aspina\\go\\src\\github.com\\alexmspina\\worldmap"
 		}
 	],
 	"settings": {}
