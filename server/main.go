@@ -37,11 +37,14 @@ func main() {
 	ProcessInitFiles(files, regexmap, db)
 
 	// err := db.View(func(tx *bolt.Tx) error {
-	// 	b := tx.Bucket([]byte("DB")).Bucket([]byte("BEAMPLANS"))
-	// 	b.ForEach(func(k, v []byte) error {
-	// 		fmt.Println(string(k), string(v))
-	// 		return nil
-	// 	})
+	// 	b := tx.Bucket([]byte("DB")).Bucket([]byte("ZONES"))
+	// 	// b.ForEach(func(k, v []byte) error {
+	// 	// 	fmt.Println(string(k), string(v))
+	// 	// 	return nil
+	// 	// })
+	// 	// return nil
+	// 	v := b.Get([]byte("22"))
+	// 	fmt.Println(string(v))
 	// 	return nil
 	// })
 	// PanicErrors(err)
@@ -61,9 +64,10 @@ func ProcessInitFiles(files []string, regexmap map[string]*regexp.Regexp, db *bo
 		case regexmap["TARGETS"].MatchString(filepath.Base(file)):
 			models.FillTargetsBucket(file, db, time.Now())
 		case regexmap["BEAMPLAN_LONGFORMAT"].MatchString(filepath.Base(file)):
-			models.FillBeamplanBucket(file, db, time.Now())
+			// models.FillBeamplanBucket(file, db, time.Now())
+			fmt.Printf("Beamplan file found: %s\n\n", file)
 		case regexmap["ZONES"].MatchString(filepath.Base(file)):
-			fmt.Printf("Zones file found: %s\n\n", file)
+			models.FillZonesBucket(file, db, time.Now())
 		case regexmap["ephemeris"].MatchString(filepath.Base(file)):
 			fmt.Printf("TLE file found: %s\n\n", file)
 		default:

@@ -13,23 +13,18 @@ import (
 	"github.com/boltdb/bolt"
 )
 
-type featureCollection struct {
-	Type     string          `json:"type"`
-	Features map[int]feature `json:"features"`
+type targetFeature struct {
+	Type       string           `json:"type"`
+	Geometry   targetGeometry   `json:"geometry"`
+	Properties targetProperties `json:"properties"`
 }
 
-type feature struct {
-	Type       string   `json:"type"`
-	Geometry   geometry `json:"geometry"`
-	Properties property `json:"properties"`
-}
-
-type geometry struct {
+type targetGeometry struct {
 	Type        string    `json:"type"`
 	Coordinates []float64 `json:"coordinates"`
 }
 
-type property struct {
+type targetProperties struct {
 	TargetID    string  `json:"targetID"`
 	ShortName   string  `json:"shortName"`
 	Altitude    string  `json:"altitude"`
@@ -48,35 +43,42 @@ func FillTargetsBucket(f string, db *bolt.DB, t time.Time) error {
 
 	// Get column header values
 	header := getHeader(r)
+	var err error
 
 	// Create list of feature structs
-	features := make(map[int]feature, 0)
-	createFeatureList(r, header, features)
-
-	// Create feature collection struct mirroring geojson collection
-	fc := featureCollection{
-		Type:     "featureCollection",
-		Features: features,
-	}
-
-	featuresBytes, err := json.MarshalIndent(fc, "", "\t")
-	if err != nil {
-		panic(err)
-	}
-	featuresBytes = bytes.Replace(featuresBytes, []byte("\\u0026"), []byte("&"), -1)
-	featuresBytes = bytes.Trim(featuresBytes, "\r")
-
-	err = db.Update(func(tx *bolt.Tx) error {
-		err = tx.Bucket([]byte("DB")).Bucket([]byte("TARGETS")).Put([]byte(t.Format(time.RFC3339)), featuresBytes)
-		if err != nil {
-			return fmt.Errorf("could not fill targets bucket: %v", err)
+	for {
+		record, err := r.Read()
+		if err == io.EOF {
+			break
 		}
-		return nil
-	})
+		if err != nil {
+			log.Fatal(err)
+		}
+		if record[0] == header[0] {
+			continue
+		}
+
+		f := buildTargetFeature(record)
+		id := f.Properties.TargetID
+
+		featureBytes, err := json.MarshalIndent(f, "", "\t")
+		if err != nil {
+			panic(err)
+		}
+		featureBytes = bytes.Replace(featureBytes, []byte("\\u0026"), []byte("&"), -1)
+		featureBytes = bytes.Trim(featureBytes, "\r")
+
+		err = db.Update(func(tx *bolt.Tx) error {
+			err = tx.Bucket([]byte("DB")).Bucket([]byte("TARGETS")).Put([]byte(id), featureBytes)
+			if err != nil {
+				return fmt.Errorf("could not fill targets bucket: %v", err)
+			}
+			return nil
+		})
+	}
 	fmt.Println("Targets bucket filled")
 
 	return err
-
 }
 
 func getHeader(cr *csv.Reader) []string {
@@ -91,51 +93,29 @@ func getHeader(cr *csv.Reader) []string {
 	return record
 }
 
-func createFeatureList(r *csv.Reader, h []string, fl map[int]feature) {
-	for {
-		record, err := r.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Fatal(err)
-		}
-		if record[0] == h[0] {
-			continue
-		}
-
-		f := buildFeature(record)
-		id, err := strconv.Atoi(f.Properties.TargetID)
-		if err != nil {
-			panic(err)
-		}
-		fl[id] = f
-	}
-}
-
-func buildFeature(r []string) feature {
-	lat := convertStringToFloat64(r[2])
-	lon := convertStringToFloat64(r[3])
+func buildTargetFeature(r []string) targetFeature {
+	lat := ConvertStringToFloat64(r[2])
+	lon := ConvertStringToFloat64(r[3])
 	if lon > 180.0 {
 		lon = lon - 360.0
 	}
 	coordinates := []float64{lon, lat}
-	geopoint := geometry{"Point", coordinates}
-	prop := property{
+	geopoint := targetGeometry{"Point", coordinates}
+	props := targetProperties{
 		TargetID:    r[0],
 		ShortName:   r[1],
 		Altitude:    r[4],
 		GatewayFlag: r[5],
 		TTCFlag:     r[6],
-		MinElTlmAOS: convertStringToFloat64(r[7]),
-		MinElTlmLOS: convertStringToFloat64(r[8]),
+		MinElTlmAOS: ConvertStringToFloat64(r[7]),
+		MinElTlmLOS: ConvertStringToFloat64(r[8]),
 		LongName:    r[9],
 		FileCode:    r[10],
 	}
-	f := feature{
+	f := targetFeature{
 		"Feature",
 		geopoint,
-		prop,
+		props,
 	}
 	return f
 }
