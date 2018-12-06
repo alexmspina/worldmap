@@ -14,8 +14,8 @@ import (
 )
 
 type featureCollection struct {
-	Type     string    `json:"type"`
-	Features []feature `json:"features"`
+	Type     string          `json:"type"`
+	Features map[int]feature `json:"features"`
 }
 
 type feature struct {
@@ -50,8 +50,8 @@ func FillTargetsBucket(f string, db *bolt.DB, t time.Time) error {
 	header := getHeader(r)
 
 	// Create list of feature structs
-	features := make([]feature, 0)
-	createFeatureList(r, header, &features)
+	features := make(map[int]feature, 0)
+	createFeatureList(r, header, features)
 
 	// Create feature collection struct mirroring geojson collection
 	fc := featureCollection{
@@ -91,7 +91,7 @@ func getHeader(cr *csv.Reader) []string {
 	return record
 }
 
-func createFeatureList(r *csv.Reader, h []string, fl *[]feature) {
+func createFeatureList(r *csv.Reader, h []string, fl map[int]feature) {
 	for {
 		record, err := r.Read()
 		if err == io.EOF {
@@ -105,7 +105,11 @@ func createFeatureList(r *csv.Reader, h []string, fl *[]feature) {
 		}
 
 		f := buildFeature(record)
-		*fl = append(*fl, f)
+		id, err := strconv.Atoi(f.Properties.TargetID)
+		if err != nil {
+			panic(err)
+		}
+		fl[id] = f
 	}
 }
 
