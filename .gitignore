@@ -27,4 +27,4 @@ yarn-error.log*
 *.json
 
 # other
-*.code-workspace
+worldmapworkspace.code-workspace
