@@ -61,6 +61,7 @@ func ProcessInitFiles(files []string, regexmap map[string]*regexp.Regexp, db *bo
 			fmt.Printf("Beamplan file found: %s\n\n", file)
 		case regexmap["ZONES"].MatchString(filepath.Base(file)):
 			models.FillZonesBucket(file, db)
+			models.FillCatseyesBucket(db)
 		case regexmap["ephemeris"].MatchString(filepath.Base(file)):
 			fmt.Printf("TLE file found: %s\n\n", file)
 		default:
@@ -73,7 +74,7 @@ func ProcessInitFiles(files []string, regexmap map[string]*regexp.Regexp, db *bo
 func CreateRegexp(r map[string]*regexp.Regexp, p []string) {
 	for _, s := range p {
 		regex, err := regexp.Compile(s)
-		PanicErrors(err)
+		models.PanicErrors(err)
 		r[s] = regex
 	}
 }
@@ -84,5 +85,5 @@ func GetFilesFromDirectory(f *[]string, d string) {
 		*f = append(*f, path)
 		return nil
 	})
-	PanicErrors(err)
+	models.PanicErrors(err)
 }

@@ -51,11 +51,6 @@ func GetDbObject(db *bolt.DB, mb string, b string, obj string) []byte {
 	var v []byte
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(mb)).Bucket([]byte(b))
-		// b.ForEach(func(k, v []byte) error {
-		// 	fmt.Println(string(k), string(v))
-		// 	return nil
-		// })
-		// return nil
 		v = b.Get([]byte(obj))
 		return nil
 	})
@@ -65,17 +60,14 @@ func GetDbObject(db *bolt.DB, mb string, b string, obj string) []byte {
 }
 
 // GetDbBucket pulls the desired bucket from the given database
-func GetDbBucket(db *bolt.DB, mb string, b string) PolygonGeometry {
-	var v []byte
+func GetDbBucket(db *bolt.DB, mb string, b string, m map[string]string) {
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(mb)).Bucket([]byte(b))
 		b.ForEach(func(k, v []byte) error {
-			fmt.Println(string(k), string(v))
+			m[string(k)] = string(v)
 			return nil
 		})
 		return nil
 	})
 	PanicErrors(err)
-
-	return v
 }
