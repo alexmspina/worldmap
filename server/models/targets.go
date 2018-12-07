@@ -15,13 +15,8 @@ import (
 
 type targetFeature struct {
 	Type       string           `json:"type"`
-	Geometry   targetGeometry   `json:"geometry"`
+	Geometry   PointGeometry    `json:"geometry"`
 	Properties targetProperties `json:"properties"`
-}
-
-type targetGeometry struct {
-	Type        string    `json:"type"`
-	Coordinates []float64 `json:"coordinates"`
 }
 
 type targetProperties struct {
@@ -100,7 +95,7 @@ func buildTargetFeature(r []string) targetFeature {
 		lon = lon - 360.0
 	}
 	coordinates := []float64{lon, lat}
-	geopoint := targetGeometry{"Point", coordinates}
+	geopoint := PointGeometry{"Point", coordinates}
 	props := targetProperties{
 		TargetID:    r[0],
 		ShortName:   r[1],

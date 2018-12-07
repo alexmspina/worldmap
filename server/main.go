@@ -50,13 +50,6 @@ func main() {
 	// PanicErrors(err)
 }
 
-// PanicErrors process errors when they occur
-func PanicErrors(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
 // ProcessInitFiles checks file names against list of regular expressions and calls handlers based on results
 func ProcessInitFiles(files []string, regexmap map[string]*regexp.Regexp, db *bolt.DB) {
 	for _, file := range files {
