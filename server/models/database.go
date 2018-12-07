@@ -33,6 +33,10 @@ func SetupDB() (*bolt.DB, error) {
 		if err != nil {
 			return fmt.Errorf("could not create tle bucket: %v", err)
 		}
+		_, err = root.CreateBucketIfNotExists([]byte("CATSEYES"))
+		if err != nil {
+			return fmt.Errorf("could not create catseyes bucket: %v", err)
+		}
 		return nil
 	})
 	if err != nil {
@@ -40,4 +44,22 @@ func SetupDB() (*bolt.DB, error) {
 	}
 	fmt.Println("DB setup Done")
 	return db, nil
+}
+
+// GetDbObject pulls the desired object from the given database and bucket
+func GetDbObject(db *bolt.DB, mb string, b string, obj string) []byte {
+	var v []byte
+	err := db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(mb)).Bucket([]byte(b))
+		// b.ForEach(func(k, v []byte) error {
+		// 	fmt.Println(string(k), string(v))
+		// 	return nil
+		// })
+		// return nil
+		v = b.Get([]byte(obj))
+		return nil
+	})
+	PanicErrors(err)
+
+	return v
 }

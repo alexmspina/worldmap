@@ -67,7 +67,7 @@ func ProcessInitFiles(files []string, regexmap map[string]*regexp.Regexp, db *bo
 			// models.FillBeamplanBucket(file, db, time.Now())
 			fmt.Printf("Beamplan file found: %s\n\n", file)
 		case regexmap["ZONES"].MatchString(filepath.Base(file)):
-			models.FillZonesBucket(file, db, time.Now())
+			models.FillZonesBucket(file, db)
 		case regexmap["ephemeris"].MatchString(filepath.Base(file)):
 			fmt.Printf("TLE file found: %s\n\n", file)
 		default:
