@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"strconv"
-	"time"
 
 	"github.com/boltdb/bolt"
 )
@@ -32,7 +31,7 @@ type targetProperties struct {
 }
 
 // FillTargetsBucket initializes a BoltDB bucket from TARGETS file
-func FillTargetsBucket(f string, db *bolt.DB, t time.Time) error {
+func FillTargetsBucket(f string, db *bolt.DB) error {
 	// Open file from filename
 	r := OpenCSV(f)
 

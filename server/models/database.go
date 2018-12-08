@@ -60,11 +60,12 @@ func GetDbObject(db *bolt.DB, mb string, b string, obj string) []byte {
 }
 
 // GetDbBucket pulls the desired bucket from the given database
-func GetDbBucket(db *bolt.DB, mb string, b string, m map[string]string) {
+func GetDbBucket(db *bolt.DB, mb string, b string, l *[][][]byte) {
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(mb)).Bucket([]byte(b))
 		b.ForEach(func(k, v []byte) error {
-			m[string(k)] = string(v)
+			tmp := [][]byte{k, v}
+			*l = append(*l, tmp)
 			return nil
 		})
 		return nil

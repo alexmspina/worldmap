@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"time"
 
 	"github.com/alexmspina/worldmap/server/models"
 	"github.com/boltdb/bolt"
@@ -37,17 +36,17 @@ func main() {
 	ProcessInitFiles(files, regexmap, db)
 
 	// err := db.View(func(tx *bolt.Tx) error {
-	// 	b := tx.Bucket([]byte("DB")).Bucket([]byte("ZONES"))
+	// 	b := tx.Bucket([]byte("DB")).Bucket([]byte("CATSEYES"))
 	// 	// b.ForEach(func(k, v []byte) error {
 	// 	// 	fmt.Println(string(k), string(v))
 	// 	// 	return nil
 	// 	// })
 	// 	// return nil
-	// 	v := b.Get([]byte("22"))
+	// 	v := b.Get([]byte("1"))
 	// 	fmt.Println(string(v))
 	// 	return nil
 	// })
-	// PanicErrors(err)
+	// models.PanicErrors(err)
 }
 
 // ProcessInitFiles checks file names against list of regular expressions and calls handlers based on results
@@ -55,7 +54,7 @@ func ProcessInitFiles(files []string, regexmap map[string]*regexp.Regexp, db *bo
 	for _, file := range files {
 		switch true {
 		case regexmap["TARGETS"].MatchString(filepath.Base(file)):
-			models.FillTargetsBucket(file, db, time.Now())
+			models.FillTargetsBucket(file, db)
 		case regexmap["BEAMPLAN_LONGFORMAT"].MatchString(filepath.Base(file)):
 			// models.FillBeamplanBucket(file, db, time.Now())
 			fmt.Printf("Beamplan file found: %s\n\n", file)
