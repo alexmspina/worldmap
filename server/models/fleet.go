@@ -8,6 +8,9 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
+
+	"github.com/joshuaferrara/go-satellite"
 
 	"github.com/boltdb/bolt"
 )
@@ -71,16 +74,15 @@ func GetTLES(tle string) map[string]map[string]string {
 		cleantlelines = cleantlelines[1:]
 	}
 
+	// create map of tles sorted by satellite name
 	tlemap := make(map[string]map[string]string, 0)
 	for i := 0; i < len(cleantlelines)/3; i++ {
 		tmpmap := make(map[string]string)
 		tmpmap["firstline"] = strings.Trim(cleantlelines[i*3+1], "\r")
 		tmpmap["secondline"] = strings.Trim(cleantlelines[i*3+2], "\r")
 		o3bname := strings.Trim(cleantlelines[i*3], "\r")
-		fmt.Println(o3bname)
 		o3bnamelen := len(o3bname)
 		name := o3bname[o3bnamelen-4:]
-		fmt.Println(name)
 		tlemap[name] = tmpmap
 	}
 
@@ -127,7 +129,6 @@ func GetBeamplan(tlemap map[string]map[string]string, bpfiles map[string]string,
 
 // FillFleetBucket initializes satellites from tle
 func FillFleetBucket(satid string, satstate SatelliteState, db *bolt.DB) error {
-
 	satstatebytes, err := json.MarshalIndent(satstate, "", "\t")
 	if err != nil {
 		panic(err)
@@ -142,7 +143,6 @@ func FillFleetBucket(satid string, satstate SatelliteState, db *bolt.DB) error {
 		}
 		return nil
 	})
-
 	return nil
 }
 
@@ -243,9 +243,43 @@ func BuildSatelliteState(bpfile string, tle map[string]string, satname string) S
 	return satstate
 }
 
-// satstate.Missions[msnid].Targets[tgtid] = bmprops
-
 // FleetTicker propagates satellite location and velocity on a time interval
-func FleetTicker() {
+func FleetTicker(db *bolt.DB) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		// select {
+		// case t := <-ticker.C:
+		// 	fmt.Println("Current time: ", t)
+		// }
+		t := <-ticker.C
+		var v []byte
 
+		err := db.View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte("DB")).Bucket([]byte("FLEET"))
+			// b.ForEach(func(k, v []byte) error {
+			// 	fmt.Println(string(k), string(v))
+			// 	return nil
+			// })
+			// return nil
+			v = b.Get([]byte("M003"))
+			return nil
+		})
+		PanicErrors(err)
+
+		var s SatelliteState
+		json.Unmarshal(v, &s)
+		// parsedtle := satellite.ParseTLE(s.TLELine1, s.TLELine2, "wgs84")
+		utc := t.UTC()
+		sat := satellite.TLEToSat(s.TLELine1, s.TLELine2, "wgs84")
+		y, m, d := utc.Date()
+		h, min, sec := utc.Clock()
+		gmst := satellite.GSTimeFromDate(y, int(m), d, h, min, sec)
+		pos, _ := satellite.Propagate(sat, y, int(m), d, h, min, sec)
+		_, _, latlng := satellite.ECIToLLA(pos, gmst)
+
+		// fmt.Println(parsedtle)
+		fmt.Printf("Latlng: %v", latlng)
+		fmt.Println("Current time: ", t)
+	}
 }

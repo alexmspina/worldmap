@@ -42,18 +42,18 @@ func main() {
 	// Process the selected files depending on their type and fill bolt db buckets
 	ProcessInitFiles(files, regexmap, db, bpfilelist)
 
-	err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("DB")).Bucket([]byte("FLEET"))
-		// b.ForEach(func(k, v []byte) error {
-		// 	fmt.Println(string(k), string(v))
-		// 	return nil
-		// })
-		// return nil
-		v := b.Get([]byte("M003"))
-		fmt.Println(string(v))
-		return nil
-	})
-	models.PanicErrors(err)
+	// err := db.View(func(tx *bolt.Tx) error {
+	// 	b := tx.Bucket([]byte("DB")).Bucket([]byte("FLEET"))
+	// 	// b.ForEach(func(k, v []byte) error {
+	// 	// 	fmt.Println(string(k), string(v))
+	// 	// 	return nil
+	// 	// })
+	// 	// return nil
+	// 	v := b.Get([]byte("M003"))
+	// 	fmt.Println(string(v))
+	// 	return nil
+	// })
+	// models.PanicErrors(err)
 }
 
 // GetBeamplanFiles organizes beamplan files into map sorted by active, spare, M001, M013
@@ -83,18 +83,15 @@ func ProcessInitFiles(files []string, regexmap map[string]*regexp.Regexp, db *bo
 		switch true {
 		case regexmap["TARGETS"].MatchString(filepath.Base(file)):
 			models.FillTargetsBucket(file, db)
-		case regexmap["BEAMPLAN_LONGFORMAT"].MatchString(filepath.Base(file)):
-			// models.FillBeamplanBucket(file, db, time.Now())
-			fmt.Printf("Beamplan file found: %s\n\n", file)
 		case regexmap["ZONES"].MatchString(filepath.Base(file)):
 			models.FillZonesBucket(file, db)
 			models.FillCatseyesBucket(db)
 		case regexmap["ephemeris"].MatchString(filepath.Base(file)):
-			// fmt.Printf("TLE file found: %s\n\n", file)
 			tlemap := models.GetTLES(file)
 			models.GetBeamplan(tlemap, bpfilelist, db)
+			models.FleetTicker(db)
 		default:
-			fmt.Printf("This file was not processed: %s\n\n", file)
+			continue
 		}
 	}
 }
