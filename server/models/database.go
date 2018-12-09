@@ -29,9 +29,13 @@ func SetupDB() (*bolt.DB, error) {
 		if err != nil {
 			return fmt.Errorf("could not create zones bucket: %v", err)
 		}
-		_, err = root.CreateBucketIfNotExists([]byte("TLES"))
+		_, err = root.CreateBucketIfNotExists([]byte("FLEET"))
 		if err != nil {
-			return fmt.Errorf("could not create tle bucket: %v", err)
+			return fmt.Errorf("could not create fleet bucket: %v", err)
+		}
+		_, err = root.CreateBucketIfNotExists([]byte("SATPOS"))
+		if err != nil {
+			return fmt.Errorf("could not create satellite positions bucket: %v", err)
 		}
 		_, err = root.CreateBucketIfNotExists([]byte("CATSEYES"))
 		if err != nil {
