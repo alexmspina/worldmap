@@ -10,9 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/joshuaferrara/go-satellite"
-
 	"github.com/boltdb/bolt"
+	satellite "github.com/joshuaferrara/go-satellite"
 )
 
 // Fleet struct of all satellite states derived from the tle and beamplan
@@ -49,6 +48,15 @@ type BeamProperties struct {
 	LDLAFCAGain           string `json:"ldlaFCAGain"`
 	LDLAGCAGain           string `json:"ldlaGCAGain"`
 	LDLASCAGain           string `json:"ldlaSCAGain"`
+}
+
+// SatelliteInMotion structure to hold location and velocity data that is updated in real time and pushed to db
+type SatelliteInMotion struct {
+	Latitude  float64                    `json:"latitude"`
+	Longitude float64                    `json:"longitude"`
+	Velocity  float64                    `json:"velocity"`
+	Altitude  float64                    `json:"altitude"`
+	Mission   map[string]BeamplanMission `json:"mission"`
 }
 
 // GetTLES creats a map of tles with map of tle lines
@@ -125,6 +133,7 @@ func GetBeamplan(tlemap map[string]map[string]string, bpfiles map[string]string,
 			}
 		}
 	}
+	fmt.Println("Fleet bucket filled.")
 }
 
 // FillFleetBucket initializes satellites from tle
@@ -243,43 +252,151 @@ func BuildSatelliteState(bpfile string, tle map[string]string, satname string) S
 	return satstate
 }
 
-// FleetTicker propagates satellite location and velocity on a time interval
-func FleetTicker(db *bolt.DB) {
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-	for {
-		// select {
-		// case t := <-ticker.C:
-		// 	fmt.Println("Current time: ", t)
-		// }
-		t := <-ticker.C
-		var v []byte
+// UpdateSatPos updates satellite positions using go rout
+func UpdateSatPos(t time.Time, sgp4sats map[string]satellite.Satellite, db *bolt.DB) {
+	for i, sat := range sgp4sats {
+		GetSatelliteLocation(t, sat, i, db)
+	}
+}
 
-		err := db.View(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte("DB")).Bucket([]byte("FLEET"))
-			// b.ForEach(func(k, v []byte) error {
-			// 	fmt.Println(string(k), string(v))
-			// 	return nil
-			// })
-			// return nil
-			v = b.Get([]byte("M003"))
+// GetSatPosDB prints the satpos db values
+func GetSatPosDB(db *bolt.DB) {
+	err := db.Batch(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("DB")).Bucket([]byte("SATPOS"))
+		b.ForEach(func(k, v []byte) error {
+			fmt.Println(string(k), string(v))
 			return nil
 		})
-		PanicErrors(err)
+		return nil
+		// m := b.Get([]byte("M006"))
+		// var satpos SatelliteInMotion
+		// json.Unmarshal(m, &satpos)
+		// fmt.Println(satpos.Longitude)
+		// for _, i := range satpos.Mission {
+		// 	fmt.Println(i.Targets)
+		// }
 
-		var s SatelliteState
-		json.Unmarshal(v, &s)
-		// parsedtle := satellite.ParseTLE(s.TLELine1, s.TLELine2, "wgs84")
-		utc := t.UTC()
-		sat := satellite.TLEToSat(s.TLELine1, s.TLELine2, "wgs84")
-		y, m, d := utc.Date()
-		h, min, sec := utc.Clock()
-		gmst := satellite.GSTimeFromDate(y, int(m), d, h, min, sec)
-		pos, _ := satellite.Propagate(sat, y, int(m), d, h, min, sec)
-		_, _, latlng := satellite.ECIToLLA(pos, gmst)
+		// return nil
+	})
+	PanicErrors(err)
+}
 
-		// fmt.Println(parsedtle)
-		fmt.Printf("Latlng: %v", latlng)
-		fmt.Println("Current time: ", t)
+// FleetTicker propagates satellite location and velocity on a time interval
+func FleetTicker(ticker *time.Ticker, sgp4sats map[string]satellite.Satellite, db *bolt.DB) {
+
+	for t := range ticker.C {
+		UpdateSatPos(t, sgp4sats, db)
+		GetSatPosDB(db)
 	}
+}
+
+// GetSatelliteStates pulls the satellite states from the db and converts from json byte to structs
+func GetSatelliteStates(db *bolt.DB) map[string]SatelliteState {
+	satStates := make(map[string]SatelliteState, 0)
+	err := db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("DB")).Bucket([]byte("FLEET"))
+		b.ForEach(func(k, v []byte) error {
+			var s SatelliteState
+			json.Unmarshal(v, &s)
+			satStates[string(k)] = s
+			return nil
+		})
+		return nil
+	})
+	PanicErrors(err)
+	return satStates
+}
+
+// InitSatelliteSGP4 takes satellite state structs and creates a satellite.Satellite object with sgp4 model initialized
+func InitSatelliteSGP4(satStates map[string]SatelliteState) map[string]satellite.Satellite {
+	sgp4sats := make(map[string]satellite.Satellite, 0)
+	for i, sat := range satStates {
+		sgp4sats[i] = satellite.TLEToSat(sat.TLELine1, sat.TLELine2, "wgs84")
+	}
+
+	return sgp4sats
+}
+
+// GetSatelliteLocation take a satellite.Satellite struct and propagates it. Then pushes it to SatelliteInMotion channel
+func GetSatelliteLocation(t time.Time, sat satellite.Satellite, id string, db *bolt.DB) {
+	utc := t.UTC()
+	y, m, d := utc.Date()
+	h, min, sec := utc.Clock()
+	gmst := satellite.GSTimeFromDate(y, int(m), d, h, min, sec)
+	pos, _ := satellite.Propagate(sat, y, int(m), d, h, min, sec)
+	alt, vel, latlng := satellite.ECIToLLA(pos, gmst)
+	latlngdeg := satellite.LatLongDeg(latlng)
+
+	satlngZero := latlngdeg.Longitude + 180.0
+	currentZones := GetCurrentZone(satlngZero, db)
+	currentMission := GetCurrentMission(id, currentZones, db)
+
+	satinmotion := SatelliteInMotion{
+		Latitude:  latlngdeg.Latitude,
+		Longitude: latlngdeg.Longitude,
+		Velocity:  vel,
+		Altitude:  alt,
+		Mission:   currentMission,
+	}
+
+	FillSatPosBucket(satinmotion, id, db)
+}
+
+// FillSatPosBucket fills the satellite position bucket with a satellite in motion object
+func FillSatPosBucket(s SatelliteInMotion, id string, db *bolt.DB) {
+
+	satposBytes, err := json.MarshalIndent(s, "", "\t")
+	PanicErrors(err)
+	satposBytes = bytes.Replace(satposBytes, []byte("\\u0026"), []byte("&"), -1)
+	satposBytes = bytes.Trim(satposBytes, "\r")
+
+	err = db.Batch(func(tx *bolt.Tx) error {
+		err = tx.Bucket([]byte("DB")).Bucket([]byte("SATPOS")).Put([]byte(id), satposBytes)
+		if err != nil {
+			return fmt.Errorf("could not fill catseyes bucket: %v", err)
+		}
+		return nil
+	})
+}
+
+// GetCurrentMission gets the current mission from sat state object
+func GetCurrentMission(satid string, missionids []string, db *bolt.DB) map[string]BeamplanMission {
+	missions := make(map[string]BeamplanMission, 0)
+
+	err := db.Batch(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("DB")).Bucket([]byte("FLEET"))
+		sat := b.Get([]byte(satid))
+		var satstate SatelliteState
+		json.Unmarshal(sat, &satstate)
+
+		for _, m := range missionids {
+			missions[m] = satstate.Missions[m]
+		}
+
+		return nil
+	})
+	PanicErrors(err)
+
+	return missions
+}
+
+// GetCurrentZone determine which zone the satellite is currently servicing
+func GetCurrentZone(satlng float64, db *bolt.DB) []string {
+	var zoneid []string
+	err := db.Batch(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("DB")).Bucket([]byte("ZONES"))
+		b.ForEach(func(k, v []byte) error {
+			var zone ZoneFeature
+			json.Unmarshal(v, &zone)
+			zonestartlng := zone.Properties.StartLng + 180.0
+			zoneendlng := zone.Properties.EndLng + 180.0
+			if satlng > zonestartlng && satlng < zoneendlng {
+				zoneid = append(zoneid, string(k))
+			}
+			return nil
+		})
+		return nil
+	})
+	PanicErrors(err)
+	return zoneid
 }

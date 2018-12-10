@@ -3,12 +3,18 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
+	"time"
+
+	"github.com/joshuaferrara/go-satellite"
 
 	"github.com/alexmspina/worldmap/server/models"
 	"github.com/boltdb/bolt"
+	"github.com/julienschmidt/httprouter"
 )
 
 func main() {
@@ -40,20 +46,26 @@ func main() {
 	db, _ := models.SetupDB()
 
 	// Process the selected files depending on their type and fill bolt db buckets
-	ProcessInitFiles(files, regexmap, db, bpfilelist)
+	ProcessInitFiles(files, regexmap, db)
 
-	// err := db.View(func(tx *bolt.Tx) error {
-	// 	b := tx.Bucket([]byte("DB")).Bucket([]byte("FLEET"))
-	// 	// b.ForEach(func(k, v []byte) error {
-	// 	// 	fmt.Println(string(k), string(v))
-	// 	// 	return nil
-	// 	// })
-	// 	// return nil
-	// 	v := b.Get([]byte("M003"))
-	// 	fmt.Println(string(v))
-	// 	return nil
-	// })
-	// models.PanicErrors(err)
+	sgp4sats := ProcessEphemeris(files, regexmap, db, bpfilelist)
+
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	go models.FleetTicker(ticker, sgp4sats, db)
+	go models.GetSatPosDB(db)
+
+	router := httprouter.New()
+	router.GET("/", Index)
+
+	log.Fatal(http.ListenAndServe(":8080", router))
+}
+
+// Index initial path resolved by server
+func Index(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	fmt.Println("yo what up bitch")
+	fmt.Fprint(w, "Welcome!\n")
 }
 
 // GetBeamplanFiles organizes beamplan files into map sorted by active, spare, M001, M013
@@ -77,8 +89,25 @@ func GetBeamplanFiles(files []string, fileregex *regexp.Regexp, regexmap map[str
 	}
 }
 
+// ProcessEphemeris takes tle and beamplan and initializes db entries
+func ProcessEphemeris(files []string, regexmap map[string]*regexp.Regexp, db *bolt.DB, bpfilelist map[string]string) map[string]satellite.Satellite {
+	sgp4sats := make(map[string]satellite.Satellite, 0)
+	for _, file := range files {
+		switch true {
+		case regexmap["ephemeris"].MatchString(filepath.Base(file)):
+			tlemap := models.GetTLES(file)
+			models.GetBeamplan(tlemap, bpfilelist, db)
+			satStates := models.GetSatelliteStates(db)
+			sgp4sats = models.InitSatelliteSGP4(satStates)
+		default:
+			continue
+		}
+	}
+	return sgp4sats
+}
+
 // ProcessInitFiles checks file names against list of regular expressions and calls handlers based on results
-func ProcessInitFiles(files []string, regexmap map[string]*regexp.Regexp, db *bolt.DB, bpfilelist map[string]string) {
+func ProcessInitFiles(files []string, regexmap map[string]*regexp.Regexp, db *bolt.DB) {
 	for _, file := range files {
 		switch true {
 		case regexmap["TARGETS"].MatchString(filepath.Base(file)):
@@ -86,10 +115,16 @@ func ProcessInitFiles(files []string, regexmap map[string]*regexp.Regexp, db *bo
 		case regexmap["ZONES"].MatchString(filepath.Base(file)):
 			models.FillZonesBucket(file, db)
 			models.FillCatseyesBucket(db)
-		case regexmap["ephemeris"].MatchString(filepath.Base(file)):
-			tlemap := models.GetTLES(file)
-			models.GetBeamplan(tlemap, bpfilelist, db)
-			models.FleetTicker(db)
+		// case regexmap["ephemeris"].MatchString(filepath.Base(file)):
+		// 	tlemap := models.GetTLES(file)
+		// 	models.GetBeamplan(tlemap, bpfilelist, db)
+		// 	satStates := models.GetSatelliteStates(db)
+		// 	sgp4sats := models.InitSatelliteSGP4(satStates)
+
+		// 	ticker := time.NewTicker(time.Second)
+		// 	defer ticker.Stop()
+		// 	go testTicker()
+		// 	models.FleetTicker(sgp4sats, db)
 		default:
 			continue
 		}
@@ -112,4 +147,14 @@ func GetFilesFromDirectory(f *[]string, d string) {
 		return nil
 	})
 	models.PanicErrors(err)
+}
+
+// testTicker is used to check if go routines are working properly
+func testTicker() {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		t := <-ticker.C
+		fmt.Println(t)
+	}
 }
