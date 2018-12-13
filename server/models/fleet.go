@@ -52,6 +52,7 @@ type BeamProperties struct {
 
 // SatelliteInMotion structure to hold location and velocity data that is updated in real time and pushed to db
 type SatelliteInMotion struct {
+	ID        string                     `json:"satelliteID"`
 	Latitude  float64                    `json:"latitude"`
 	Longitude float64                    `json:"longitude"`
 	Velocity  float64                    `json:"velocity"`
@@ -259,26 +260,103 @@ func UpdateSatPos(t time.Time, sgp4sats map[string]satellite.Satellite, db *bolt
 	}
 }
 
-// GetSatPosDB prints the satpos db values
-func GetSatPosDB(db *bolt.DB) {
+// GetSatelliteLocation take a satellite.Satellite struct and propagates it. Then pushes it to SatelliteInMotion channel
+func GetSatelliteLocation(t time.Time, sat satellite.Satellite, id string, db *bolt.DB) {
+	utc := t.UTC()
+	y, m, d := utc.Date()
+	h, min, sec := utc.Clock()
+	gmst := satellite.GSTimeFromDate(y, int(m), d, h, min, sec)
+	pos, _ := satellite.Propagate(sat, y, int(m), d, h, min, sec)
+	alt, vel, latlng := satellite.ECIToLLA(pos, gmst)
+	latlngdeg := satellite.LatLongDeg(latlng)
+
+	satlngZero := latlngdeg.Longitude
+	currentZones := GetCurrentZone(satlngZero, db)
+	currentMission := GetCurrentMission(id, currentZones, db)
+
+	satinmotion := SatelliteInMotion{
+		ID:        id,
+		Latitude:  latlngdeg.Latitude,
+		Longitude: latlngdeg.Longitude,
+		Velocity:  vel,
+		Altitude:  alt,
+		Mission:   currentMission,
+	}
+
+	FillSatPosBucket(satinmotion, id, db)
+}
+
+// GetCurrentZone determine which zone the satellite is currently servicing
+func GetCurrentZone(satlng float64, db *bolt.DB) []string {
+	var zoneid []string
 	err := db.Batch(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("DB")).Bucket([]byte("SATPOS"))
+		b := tx.Bucket([]byte("DB")).Bucket([]byte("ZONES"))
 		b.ForEach(func(k, v []byte) error {
-			fmt.Println(string(k), string(v))
+			var zone ZoneFeature
+			json.Unmarshal(v, &zone)
+			zonestartlng := zone.Properties.StartLng
+			zoneendlng := zone.Properties.EndLng
+
+			// shift longitudes less than 0 to 0 - 360 range for easy zone placement
+			if zoneendlng < zonestartlng {
+				zoneendlng = zoneendlng + 360.0
+
+				if satlng < 0 {
+					satlngadjusted := satlng + 360.0
+
+					if satlngadjusted > zonestartlng && satlngadjusted < zoneendlng {
+						zoneid = append(zoneid, string(k))
+					}
+				}
+			} else {
+				if satlng > zonestartlng && satlng < zoneendlng {
+					zoneid = append(zoneid, string(k))
+				}
+			}
 			return nil
 		})
 		return nil
-		// m := b.Get([]byte("M006"))
-		// var satpos SatelliteInMotion
-		// json.Unmarshal(m, &satpos)
-		// fmt.Println(satpos.Longitude)
-		// for _, i := range satpos.Mission {
-		// 	fmt.Println(i.Targets)
-		// }
-
-		// return nil
 	})
 	PanicErrors(err)
+	return zoneid
+}
+
+// GetCurrentMission gets the current mission from sat state object
+func GetCurrentMission(satid string, missionids []string, db *bolt.DB) map[string]BeamplanMission {
+	missions := make(map[string]BeamplanMission, 0)
+
+	err := db.Batch(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("DB")).Bucket([]byte("FLEET"))
+		sat := b.Get([]byte(satid))
+		var satstate SatelliteState
+		json.Unmarshal(sat, &satstate)
+
+		for _, m := range missionids {
+			missions[m] = satstate.Missions[m]
+		}
+
+		return nil
+	})
+	PanicErrors(err)
+
+	return missions
+}
+
+// FillSatPosBucket fills the satellite position bucket with a satellite in motion object
+func FillSatPosBucket(s SatelliteInMotion, id string, db *bolt.DB) {
+
+	satposBytes, err := json.MarshalIndent(s, "", "\t")
+	PanicErrors(err)
+	satposBytes = bytes.Replace(satposBytes, []byte("\\u0026"), []byte("&"), -1)
+	satposBytes = bytes.Trim(satposBytes, "\r")
+
+	err = db.Batch(func(tx *bolt.Tx) error {
+		err = tx.Bucket([]byte("DB")).Bucket([]byte("SATPOS")).Put([]byte(id), satposBytes)
+		if err != nil {
+			return fmt.Errorf("could not fill catseyes bucket: %v", err)
+		}
+		return nil
+	})
 }
 
 // FleetTicker propagates satellite location and velocity on a time interval
@@ -286,7 +364,6 @@ func FleetTicker(ticker *time.Ticker, sgp4sats map[string]satellite.Satellite, d
 
 	for t := range ticker.C {
 		UpdateSatPos(t, sgp4sats, db)
-		GetSatPosDB(db)
 	}
 }
 
@@ -315,88 +392,4 @@ func InitSatelliteSGP4(satStates map[string]SatelliteState) map[string]satellite
 	}
 
 	return sgp4sats
-}
-
-// GetSatelliteLocation take a satellite.Satellite struct and propagates it. Then pushes it to SatelliteInMotion channel
-func GetSatelliteLocation(t time.Time, sat satellite.Satellite, id string, db *bolt.DB) {
-	utc := t.UTC()
-	y, m, d := utc.Date()
-	h, min, sec := utc.Clock()
-	gmst := satellite.GSTimeFromDate(y, int(m), d, h, min, sec)
-	pos, _ := satellite.Propagate(sat, y, int(m), d, h, min, sec)
-	alt, vel, latlng := satellite.ECIToLLA(pos, gmst)
-	latlngdeg := satellite.LatLongDeg(latlng)
-
-	satlngZero := latlngdeg.Longitude + 180.0
-	currentZones := GetCurrentZone(satlngZero, db)
-	currentMission := GetCurrentMission(id, currentZones, db)
-
-	satinmotion := SatelliteInMotion{
-		Latitude:  latlngdeg.Latitude,
-		Longitude: latlngdeg.Longitude,
-		Velocity:  vel,
-		Altitude:  alt,
-		Mission:   currentMission,
-	}
-
-	FillSatPosBucket(satinmotion, id, db)
-}
-
-// FillSatPosBucket fills the satellite position bucket with a satellite in motion object
-func FillSatPosBucket(s SatelliteInMotion, id string, db *bolt.DB) {
-
-	satposBytes, err := json.MarshalIndent(s, "", "\t")
-	PanicErrors(err)
-	satposBytes = bytes.Replace(satposBytes, []byte("\\u0026"), []byte("&"), -1)
-	satposBytes = bytes.Trim(satposBytes, "\r")
-
-	err = db.Batch(func(tx *bolt.Tx) error {
-		err = tx.Bucket([]byte("DB")).Bucket([]byte("SATPOS")).Put([]byte(id), satposBytes)
-		if err != nil {
-			return fmt.Errorf("could not fill catseyes bucket: %v", err)
-		}
-		return nil
-	})
-}
-
-// GetCurrentMission gets the current mission from sat state object
-func GetCurrentMission(satid string, missionids []string, db *bolt.DB) map[string]BeamplanMission {
-	missions := make(map[string]BeamplanMission, 0)
-
-	err := db.Batch(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("DB")).Bucket([]byte("FLEET"))
-		sat := b.Get([]byte(satid))
-		var satstate SatelliteState
-		json.Unmarshal(sat, &satstate)
-
-		for _, m := range missionids {
-			missions[m] = satstate.Missions[m]
-		}
-
-		return nil
-	})
-	PanicErrors(err)
-
-	return missions
-}
-
-// GetCurrentZone determine which zone the satellite is currently servicing
-func GetCurrentZone(satlng float64, db *bolt.DB) []string {
-	var zoneid []string
-	err := db.Batch(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("DB")).Bucket([]byte("ZONES"))
-		b.ForEach(func(k, v []byte) error {
-			var zone ZoneFeature
-			json.Unmarshal(v, &zone)
-			zonestartlng := zone.Properties.StartLng + 180.0
-			zoneendlng := zone.Properties.EndLng + 180.0
-			if satlng > zonestartlng && satlng < zoneendlng {
-				zoneid = append(zoneid, string(k))
-			}
-			return nil
-		})
-		return nil
-	})
-	PanicErrors(err)
-	return zoneid
 }

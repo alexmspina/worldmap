@@ -6,6 +6,11 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
+	"regexp"
+
+	"github.com/boltdb/bolt"
+	satellite "github.com/joshuaferrara/go-satellite"
 )
 
 // GetHeader from csv files
@@ -32,4 +37,57 @@ func OpenCSV(f string) *csv.Reader {
 	r := csv.NewReader(file)
 
 	return r
+}
+
+// GetBeamplanFiles organizes beamplan files into map sorted by active, spare, M001, M013
+func GetBeamplanFiles(files []string, fileregex *regexp.Regexp, regexmap map[string]*regexp.Regexp, bpfiles map[string]string) {
+	for _, file := range files {
+		switch true {
+		case fileregex.MatchString(filepath.Base(file)):
+			switch true {
+			case regexmap["mute"].MatchString(filepath.Base(file)):
+				bpfiles["SPARE"] = file
+			case regexmap["B3"].MatchString(filepath.Base(file)):
+				bpfiles["B3"] = file
+			case regexmap["M001"].MatchString(filepath.Base(file)):
+				bpfiles["M001"] = file
+			case regexmap["M013"].MatchString(filepath.Base(file)):
+				bpfiles["M013"] = file
+			default:
+				bpfiles["ACTIVE"] = file
+			}
+		}
+	}
+}
+
+// ProcessInitFiles checks file names against list of regular expressions and calls handlers based on results
+func ProcessInitFiles(files []string, regexmap map[string]*regexp.Regexp, db *bolt.DB) {
+	for _, file := range files {
+		switch true {
+		case regexmap["TARGETS"].MatchString(filepath.Base(file)):
+			FillTargetsBucket(file, db)
+		case regexmap["ZONES"].MatchString(filepath.Base(file)):
+			FillZonesBucket(file, db)
+			FillCatseyesBucket(db)
+		default:
+			continue
+		}
+	}
+}
+
+// ProcessEphemeris takes tle and beamplan and initializes db entries
+func ProcessEphemeris(files []string, regexmap map[string]*regexp.Regexp, db *bolt.DB, bpfilelist map[string]string) map[string]satellite.Satellite {
+	sgp4sats := make(map[string]satellite.Satellite, 0)
+	for _, file := range files {
+		switch true {
+		case regexmap["ephemeris"].MatchString(filepath.Base(file)):
+			tlemap := GetTLES(file)
+			GetBeamplan(tlemap, bpfilelist, db)
+			satStates := GetSatelliteStates(db)
+			sgp4sats = InitSatelliteSGP4(satStates)
+		default:
+			continue
+		}
+	}
+	return sgp4sats
 }

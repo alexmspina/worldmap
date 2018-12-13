@@ -139,13 +139,36 @@ func BuildCatseyeFeature(c [][]float64, p ZoneProperties) CatseyeFeature {
 	return v
 }
 
+func overLngWindow(initlng ...float64) []float64 {
+	reslng := make([]float64, 0)
+	for _, l := range initlng {
+		if l > 180.0 {
+			l = l - 360
+			reslng = append(reslng, l)
+		} else {
+			reslng = append(reslng, l)
+		}
+	}
+	return reslng
+}
+
 func buildZoneFeature(r []string) ZoneFeature {
+	StartLng := ConvertStringToFloat64(r[2])
+	CenterLng := ConvertStringToFloat64(r[3])
+	EndLng := ConvertStringToFloat64(r[4])
+
+	NewLngs := overLngWindow(StartLng, CenterLng, EndLng)
+
+	StartLng = NewLngs[0]
+	CenterLng = NewLngs[1]
+	EndLng = NewLngs[2]
+
 	props := ZoneProperties{
 		Subregion: r[0],
 		ZoneID:    r[1],
-		StartLng:  ConvertStringToFloat64(r[2]),
-		CenterLng: ConvertStringToFloat64(r[3]),
-		EndLng:    ConvertStringToFloat64(r[4]),
+		StartLng:  StartLng,
+		CenterLng: CenterLng,
+		EndLng:    EndLng,
 		Gateway:   r[5],
 	}
 	f := ZoneFeature{

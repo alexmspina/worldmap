@@ -50,19 +50,6 @@ func SetupDB() (*bolt.DB, error) {
 	return db, nil
 }
 
-// GetDbObject pulls the desired object from the given database and bucket
-func GetDbObject(db *bolt.DB, mb string, b string, obj string) []byte {
-	var v []byte
-	err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(mb)).Bucket([]byte(b))
-		v = b.Get([]byte(obj))
-		return nil
-	})
-	PanicErrors(err)
-
-	return v
-}
-
 // GetDbBucket pulls the desired bucket from the given database
 func GetDbBucket(db *bolt.DB, mb string, b string, l *[][][]byte) {
 	err := db.View(func(tx *bolt.Tx) error {
@@ -75,4 +62,15 @@ func GetDbBucket(db *bolt.DB, mb string, b string, l *[][][]byte) {
 		return nil
 	})
 	PanicErrors(err)
+}
+
+// GetDBObject retrieves the object from the desired bucket within a particular database and prints it to the screen
+func GetDBObject(thing string, db *bolt.DB, dbBucket string, subBucket string) []byte {
+	var b []byte
+	db.View(func(tx *bolt.Tx) error {
+		b = tx.Bucket([]byte(dbBucket)).Bucket([]byte(subBucket)).Get([]byte(thing))
+		return nil
+	})
+
+	return b
 }
