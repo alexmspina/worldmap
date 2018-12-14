@@ -10,13 +10,6 @@ import (
 // StringKey creates a special type so it doesn't conflict with standard strings
 type StringKey string
 
-// AppendBytes adds a byte slice to another by byte
-func AppendBytes(mainslice *[]byte, addingslice []byte) {
-	for _, i := range addingslice {
-		*mainslice = append(*mainslice, i)
-	}
-}
-
 // WrapHandler wraps a standard http handler so it can be used with httprouter package
 func WrapHandler(h http.Handler) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {

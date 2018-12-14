@@ -35,7 +35,7 @@ type ZoneProperties struct {
 }
 
 // FillZonesBucket initializes a BoltDB bucket from TARGETS file
-func FillZonesBucket(f string, db *bolt.DB) error {
+func FillZonesBucket(f string) error {
 	// Open file from filename
 	r := OpenCSV(f)
 
@@ -66,7 +66,7 @@ func FillZonesBucket(f string, db *bolt.DB) error {
 		featureBytes = bytes.Replace(featureBytes, []byte("\\u0026"), []byte("&"), -1)
 		featureBytes = bytes.Trim(featureBytes, "\r")
 
-		err = db.Update(func(tx *bolt.Tx) error {
+		err = DB.Update(func(tx *bolt.Tx) error {
 			err = tx.Bucket([]byte("DB")).Bucket([]byte("ZONES")).Put([]byte(id), featureBytes)
 			if err != nil {
 				return fmt.Errorf("could not fill zones bucket: %v", err)
@@ -80,10 +80,10 @@ func FillZonesBucket(f string, db *bolt.DB) error {
 }
 
 // FillCatseyesBucket fills bolt db with catseye polygon geojson objects
-func FillCatseyesBucket(db *bolt.DB) {
+func FillCatseyesBucket() {
 	catseyes := make([]CatseyeFeature, 0)
 	// Get zones from db and calculate coordinates for catseye polygon
-	db.View(func(tx *bolt.Tx) error {
+	DB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("DB")).Bucket([]byte("ZONES"))
 		b.ForEach(func(k, v []byte) error {
 			var z ZoneFeature
@@ -114,7 +114,7 @@ func FillCatseyesBucket(db *bolt.DB) {
 		featureBytes = bytes.Replace(featureBytes, []byte("\\u0026"), []byte("&"), -1)
 		featureBytes = bytes.Trim(featureBytes, "\r")
 
-		err = db.Update(func(tx *bolt.Tx) error {
+		err = DB.Update(func(tx *bolt.Tx) error {
 			err = tx.Bucket([]byte("DB")).Bucket([]byte("CATSEYES")).Put([]byte(id), featureBytes)
 			if err != nil {
 				return fmt.Errorf("could not fill catseyes bucket: %v", err)
@@ -211,4 +211,39 @@ func ComputeCoverageCircle(p []float64, c []float64, s string, l *[][]float64) {
 			continue
 		}
 	}
+}
+
+// GetCurrentZone determine which zone the satellite is currently servicing
+func GetCurrentZone(satlng float64) []string {
+	var zoneid []string
+	err := DB.Batch(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("DB")).Bucket([]byte("ZONES"))
+		b.ForEach(func(k, v []byte) error {
+			var zone ZoneFeature
+			json.Unmarshal(v, &zone)
+			zonestartlng := zone.Properties.StartLng
+			zoneendlng := zone.Properties.EndLng
+
+			// shift longitudes less than 0 to 0 - 360 range for easy zone placement
+			if zoneendlng < zonestartlng {
+				zoneendlng = zoneendlng + 360.0
+
+				if satlng < 0 {
+					satlngadjusted := satlng + 360.0
+
+					if satlngadjusted > zonestartlng && satlngadjusted < zoneendlng {
+						zoneid = append(zoneid, string(k))
+					}
+				}
+			} else {
+				if satlng > zonestartlng && satlng < zoneendlng {
+					zoneid = append(zoneid, string(k))
+				}
+			}
+			return nil
+		})
+		return nil
+	})
+	PanicErrors(err)
+	return zoneid
 }

@@ -25,3 +25,10 @@ func GetFilesFromDirectory(f *[]string, d string) {
 	})
 	models.PanicErrors(err)
 }
+
+// AppendBytes adds a byte slice to another by byte
+func AppendBytes(mainslice *[]byte, addingslice []byte) {
+	for _, i := range addingslice {
+		*mainslice = append(*mainslice, i)
+	}
+}

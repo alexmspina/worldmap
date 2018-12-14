@@ -10,9 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/graphql-go/graphql"
+
 	"github.com/boltdb/bolt"
 	satellite "github.com/joshuaferrara/go-satellite"
 )
+
+// DB main bolt database object
+var DB, _ = SetupDB()
 
 // Fleet struct of all satellite states derived from the tle and beamplan
 type Fleet struct {
@@ -21,22 +26,56 @@ type Fleet struct {
 
 // SatelliteState struct that models the static info of a satellite including tle lines and current beamplan
 type SatelliteState struct {
-	TLELine1 string                     `json:"tleLine1"`
-	TLELine2 string                     `json:"tleLine2"`
-	Missions map[string]BeamplanMission `json:"missions"`
+	TLELine1 string            `json:"tleLine1"`
+	TLELine2 string            `json:"tleLine2"`
+	Missions []BeamplanMission `json:"missions"`
 }
 
 // BeamplanMission struct modeling beamplan mission
 type BeamplanMission struct {
-	MissionConfig          string                    `json:"missionConfig"`
-	GatewayTargetID        string                    `json:"gatewayTargetID"`
-	GatewayOBAntID         string                    `json:"gatewayOBAntID"`
-	GatewayPointingMaxTime string                    `json:"gatewayPointingMaxTime"`
-	Targets                map[string]BeamProperties `json:"targets"`
+	ID                     string           `json:"id"`
+	MissionConfig          string           `json:"missionConfig"`
+	GatewayTargetID        string           `json:"gatewayTargetID"`
+	GatewayOBAntID         string           `json:"gatewayOBAntID"`
+	GatewayPointingMaxTime string           `json:"gatewayPointingMaxTime"`
+	Beams                  []BeamProperties `json:"beams"`
 }
+
+// MissionType graphql object for individual beamplan mission queries
+var MissionType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "Mission",
+	Fields: graphql.Fields{
+		"id": &graphql.Field{
+			Type: graphql.String,
+		},
+		"config": &graphql.Field{
+			Type: graphql.String,
+		},
+		"gatewayID": &graphql.Field{
+			Type: graphql.String,
+		},
+		"gatewayOBAnt": &graphql.Field{
+			Type: graphql.String,
+		},
+		"gatewayMaxPointingTime": &graphql.Field{
+			Type: graphql.String,
+		},
+		"beams": &graphql.Field{
+			Type:        graphql.NewList(BeamPropsType),
+			Description: "Get the beams from the current mission",
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+
+				s := params.Source.(BeamplanMission)
+
+				return s.Beams, nil
+			},
+		},
+	},
+})
 
 // BeamProperties struct modeling individual beam settings
 type BeamProperties struct {
+	ID                    string `json:"id"`
 	EPCList               string `json:"epcList"`
 	TargetOBAntID         string `json:"targetOBAntID"`
 	TargetMaxPointingTime string `json:"targetMaxPointingTime"`
@@ -50,14 +89,96 @@ type BeamProperties struct {
 	LDLASCAGain           string `json:"ldlaSCAGain"`
 }
 
+// BeamPropsType graphql object for Beam property queries
+var BeamPropsType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "BeamProperties",
+	Fields: graphql.Fields{
+		"id": &graphql.Field{
+			Type: graphql.String,
+		},
+		"epcs": &graphql.Field{
+			Type: graphql.String,
+		},
+		"targetOBAnt": &graphql.Field{
+			Type: graphql.String,
+		},
+		"targetMaxPointingTime": &graphql.Field{
+			Type: graphql.String,
+		},
+		"camp": &graphql.Field{
+			Type: graphql.String,
+		},
+		"campMode": &graphql.Field{
+			Type: graphql.String,
+		},
+		"campGain": &graphql.Field{
+			Type: graphql.String,
+		},
+		"ldla": &graphql.Field{
+			Type: graphql.String,
+		},
+		"ldlaMode": &graphql.Field{
+			Type: graphql.String,
+		},
+		"ldlaFcaGain": &graphql.Field{
+			Type: graphql.String,
+		},
+		"ldlaGcaGain": &graphql.Field{
+			Type: graphql.String,
+		},
+		"ldlaScaGain": &graphql.Field{
+			Type: graphql.String,
+		},
+	},
+})
+
 // SatelliteInMotion structure to hold location and velocity data that is updated in real time and pushed to db
 type SatelliteInMotion struct {
-	ID        string                     `json:"satelliteID"`
-	Latitude  float64                    `json:"latitude"`
-	Longitude float64                    `json:"longitude"`
-	Velocity  float64                    `json:"velocity"`
-	Altitude  float64                    `json:"altitude"`
-	Mission   map[string]BeamplanMission `json:"mission"`
+	ID        string            `json:"satelliteID"`
+	Latitude  float64           `json:"latitude"`
+	Longitude float64           `json:"longitude"`
+	Velocity  float64           `json:"velocity"`
+	Altitude  float64           `json:"altitude"`
+	Mission   []BeamplanMission `json:"mission"`
+}
+
+// SatelliteType graphql object for satellite queries
+var SatelliteType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "Satellite",
+	Fields: graphql.Fields{
+		"id": &graphql.Field{
+			Type: graphql.String,
+		},
+		"latitude": &graphql.Field{
+			Type: graphql.Float,
+		},
+		"longitude": &graphql.Field{
+			Type: graphql.Float,
+		},
+		"velocity": &graphql.Field{
+			Type: graphql.Float,
+		},
+		"altitude": &graphql.Field{
+			Type: graphql.Float,
+		},
+		"mission": &graphql.Field{
+			Type:        graphql.NewList(MissionType),
+			Description: "Get the missions currently serviced by the satellite",
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+
+				s := params.Source.(SatelliteInMotion)
+				currentZones := GetCurrentZone(s.Longitude)
+				currentMissions := GetCurrentMission(s.ID, currentZones)
+				fmt.Println(currentMissions, "\n", len(currentMissions))
+				return currentMissions, nil
+			},
+		},
+	},
+})
+
+// SetCurrentMission receives a pointer to a satelliteInMotion and sets its current mission
+func (s *SatelliteInMotion) SetCurrentMission(m []BeamplanMission) {
+	s.Mission = m
 }
 
 // GetTLES creats a map of tles with map of tle lines
@@ -99,7 +220,7 @@ func GetTLES(tle string) map[string]map[string]string {
 }
 
 // GetBeamplan determines what beamplan file to use based on the satellite being processed
-func GetBeamplan(tlemap map[string]map[string]string, bpfiles map[string]string, db *bolt.DB) {
+func GetBeamplan(tlemap map[string]map[string]string, bpfiles map[string]string) {
 	spares := []string{"M002", "M004", "M005"}
 	activenotb3 := []string{"M001", "M003", "M006", "M007", "M008", "M009", "M010", "M011", "M012"}
 	activeb3 := []string{"M013", "M014", "M015", "M016"}
@@ -109,28 +230,28 @@ func GetBeamplan(tlemap map[string]map[string]string, bpfiles map[string]string,
 		case StringInSlice(sat, spares):
 			bpfile := bpfiles["SPARE"]
 			satstate := BuildSatelliteState(bpfile, tle, sat)
-			FillFleetBucket(sat, satstate, db)
+			FillFleetBucket(sat, satstate)
 		case StringInSlice(sat, activenotb3):
 			switch sat {
 			case "M001":
 				bpfile := bpfiles["M001"]
 				satstate := BuildSatelliteState(bpfile, tle, sat)
-				FillFleetBucket(sat, satstate, db)
+				FillFleetBucket(sat, satstate)
 			default:
 				bpfile := bpfiles["ACTIVE"]
 				satstate := BuildSatelliteState(bpfile, tle, sat)
-				FillFleetBucket(sat, satstate, db)
+				FillFleetBucket(sat, satstate)
 			}
 		case StringInSlice(sat, activeb3):
 			switch sat {
 			case "M013":
 				bpfile := bpfiles["M013"]
 				satstate := BuildSatelliteState(bpfile, tle, sat)
-				FillFleetBucket(sat, satstate, db)
+				FillFleetBucket(sat, satstate)
 			default:
 				bpfile := bpfiles["B3"]
 				satstate := BuildSatelliteState(bpfile, tle, sat)
-				FillFleetBucket(sat, satstate, db)
+				FillFleetBucket(sat, satstate)
 			}
 		}
 	}
@@ -138,7 +259,7 @@ func GetBeamplan(tlemap map[string]map[string]string, bpfiles map[string]string,
 }
 
 // FillFleetBucket initializes satellites from tle
-func FillFleetBucket(satid string, satstate SatelliteState, db *bolt.DB) error {
+func FillFleetBucket(satid string, satstate SatelliteState) error {
 	satstatebytes, err := json.MarshalIndent(satstate, "", "\t")
 	if err != nil {
 		panic(err)
@@ -146,7 +267,7 @@ func FillFleetBucket(satid string, satstate SatelliteState, db *bolt.DB) error {
 	satstatebytes = bytes.Replace(satstatebytes, []byte("\\u0026"), []byte("&"), -1)
 	satstatebytes = bytes.Trim(satstatebytes, "\r")
 
-	err = db.Update(func(tx *bolt.Tx) error {
+	err = DB.Update(func(tx *bolt.Tx) error {
 		err = tx.Bucket([]byte("DB")).Bucket([]byte("FLEET")).Put([]byte(satid), satstatebytes)
 		if err != nil {
 			return fmt.Errorf("could not fill zones bucket: %v", err)
@@ -194,9 +315,9 @@ func BuildSatelliteState(bpfile string, tle map[string]string, satname string) S
 		}
 	}
 
-	msnsmap := make(map[string]BeamplanMission, 0)
-	for i, beams := range msns {
-		tgts := make(map[string]BeamProperties, 0)
+	msnsmap := make([]BeamplanMission, 0)
+	for id, beams := range msns {
+		tgts := make([]BeamProperties, 0)
 		var msnconfig, gwtgtid, gwobantid, gwpntmxtime string
 		for _, record := range beams {
 			msnconfig = record[2]
@@ -217,6 +338,7 @@ func BuildSatelliteState(bpfile string, tle map[string]string, satname string) S
 			ldlascagain := record[18]
 
 			bmprops := BeamProperties{
+				ID:                    tgtid,
 				EPCList:               epclist,
 				TargetOBAntID:         tgtobantid,
 				TargetMaxPointingTime: tgtpntmxtime,
@@ -230,18 +352,19 @@ func BuildSatelliteState(bpfile string, tle map[string]string, satname string) S
 				LDLASCAGain:           ldlascagain,
 			}
 
-			tgts[tgtid] = bmprops
+			tgts = append(tgts, bmprops)
 		}
 
 		bpmsn := BeamplanMission{
+			ID:                     id,
 			MissionConfig:          msnconfig,
 			GatewayTargetID:        gwtgtid,
 			GatewayOBAntID:         gwobantid,
 			GatewayPointingMaxTime: gwpntmxtime,
-			Targets:                tgts,
+			Beams:                  tgts,
 		}
 
-		msnsmap[i] = bpmsn
+		msnsmap = append(msnsmap, bpmsn)
 	}
 
 	satstate := SatelliteState{
@@ -253,15 +376,30 @@ func BuildSatelliteState(bpfile string, tle map[string]string, satname string) S
 	return satstate
 }
 
+// GetSatellitePosition gets the current satellite position from SATPOS db
+func GetSatellitePosition(s string) SatelliteInMotion {
+	var livesat SatelliteInMotion
+	err := DB.Batch(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("DB")).Bucket([]byte("SATPOS"))
+		sat := b.Get([]byte(s))
+		json.Unmarshal(sat, &livesat)
+
+		return nil
+	})
+	PanicErrors(err)
+
+	return livesat
+}
+
 // UpdateSatPos updates satellite positions using go rout
-func UpdateSatPos(t time.Time, sgp4sats map[string]satellite.Satellite, db *bolt.DB) {
+func UpdateSatPos(t time.Time, sgp4sats map[string]satellite.Satellite) {
 	for i, sat := range sgp4sats {
-		GetSatelliteLocation(t, sat, i, db)
+		PropagateSatellite(t, sat, i)
 	}
 }
 
-// GetSatelliteLocation take a satellite.Satellite struct and propagates it. Then pushes it to SatelliteInMotion channel
-func GetSatelliteLocation(t time.Time, sat satellite.Satellite, id string, db *bolt.DB) {
+// PropagateSatellite take a satellite.Satellite struct and propagates it. Then pushes it to SatelliteInMotion channel
+func PropagateSatellite(t time.Time, sat satellite.Satellite, id string) {
 	utc := t.UTC()
 	y, m, d := utc.Date()
 	h, min, sec := utc.Clock()
@@ -270,9 +408,8 @@ func GetSatelliteLocation(t time.Time, sat satellite.Satellite, id string, db *b
 	alt, vel, latlng := satellite.ECIToLLA(pos, gmst)
 	latlngdeg := satellite.LatLongDeg(latlng)
 
-	satlngZero := latlngdeg.Longitude
-	currentZones := GetCurrentZone(satlngZero, db)
-	currentMission := GetCurrentMission(id, currentZones, db)
+	// currentZones := GetCurrentZone(latlngdeg.Longitude, db)
+	// currentMission := GetCurrentMission(id, currentZones, db)
 
 	satinmotion := SatelliteInMotion{
 		ID:        id,
@@ -280,59 +417,23 @@ func GetSatelliteLocation(t time.Time, sat satellite.Satellite, id string, db *b
 		Longitude: latlngdeg.Longitude,
 		Velocity:  vel,
 		Altitude:  alt,
-		Mission:   currentMission,
 	}
 
-	FillSatPosBucket(satinmotion, id, db)
-}
-
-// GetCurrentZone determine which zone the satellite is currently servicing
-func GetCurrentZone(satlng float64, db *bolt.DB) []string {
-	var zoneid []string
-	err := db.Batch(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("DB")).Bucket([]byte("ZONES"))
-		b.ForEach(func(k, v []byte) error {
-			var zone ZoneFeature
-			json.Unmarshal(v, &zone)
-			zonestartlng := zone.Properties.StartLng
-			zoneendlng := zone.Properties.EndLng
-
-			// shift longitudes less than 0 to 0 - 360 range for easy zone placement
-			if zoneendlng < zonestartlng {
-				zoneendlng = zoneendlng + 360.0
-
-				if satlng < 0 {
-					satlngadjusted := satlng + 360.0
-
-					if satlngadjusted > zonestartlng && satlngadjusted < zoneendlng {
-						zoneid = append(zoneid, string(k))
-					}
-				}
-			} else {
-				if satlng > zonestartlng && satlng < zoneendlng {
-					zoneid = append(zoneid, string(k))
-				}
-			}
-			return nil
-		})
-		return nil
-	})
-	PanicErrors(err)
-	return zoneid
+	FillSatPosBucket(satinmotion, id)
 }
 
 // GetCurrentMission gets the current mission from sat state object
-func GetCurrentMission(satid string, missionids []string, db *bolt.DB) map[string]BeamplanMission {
-	missions := make(map[string]BeamplanMission, 0)
+func GetCurrentMission(satid string, missionids []string) []BeamplanMission {
+	missions := make([]BeamplanMission, 0)
 
-	err := db.Batch(func(tx *bolt.Tx) error {
+	err := DB.Batch(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("DB")).Bucket([]byte("FLEET"))
 		sat := b.Get([]byte(satid))
 		var satstate SatelliteState
 		json.Unmarshal(sat, &satstate)
 
-		for _, m := range missionids {
-			missions[m] = satstate.Missions[m]
+		for m := range missionids {
+			missions = append(missions, satstate.Missions[m])
 		}
 
 		return nil
@@ -343,14 +444,14 @@ func GetCurrentMission(satid string, missionids []string, db *bolt.DB) map[strin
 }
 
 // FillSatPosBucket fills the satellite position bucket with a satellite in motion object
-func FillSatPosBucket(s SatelliteInMotion, id string, db *bolt.DB) {
+func FillSatPosBucket(s SatelliteInMotion, id string) {
 
 	satposBytes, err := json.MarshalIndent(s, "", "\t")
 	PanicErrors(err)
 	satposBytes = bytes.Replace(satposBytes, []byte("\\u0026"), []byte("&"), -1)
 	satposBytes = bytes.Trim(satposBytes, "\r")
 
-	err = db.Batch(func(tx *bolt.Tx) error {
+	err = DB.Batch(func(tx *bolt.Tx) error {
 		err = tx.Bucket([]byte("DB")).Bucket([]byte("SATPOS")).Put([]byte(id), satposBytes)
 		if err != nil {
 			return fmt.Errorf("could not fill catseyes bucket: %v", err)
@@ -360,17 +461,17 @@ func FillSatPosBucket(s SatelliteInMotion, id string, db *bolt.DB) {
 }
 
 // FleetTicker propagates satellite location and velocity on a time interval
-func FleetTicker(ticker *time.Ticker, sgp4sats map[string]satellite.Satellite, db *bolt.DB) {
+func FleetTicker(ticker *time.Ticker, sgp4sats map[string]satellite.Satellite) {
 
 	for t := range ticker.C {
-		UpdateSatPos(t, sgp4sats, db)
+		UpdateSatPos(t, sgp4sats)
 	}
 }
 
 // GetSatelliteStates pulls the satellite states from the db and converts from json byte to structs
-func GetSatelliteStates(db *bolt.DB) map[string]SatelliteState {
+func GetSatelliteStates() map[string]SatelliteState {
 	satStates := make(map[string]SatelliteState, 0)
-	err := db.View(func(tx *bolt.Tx) error {
+	err := DB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("DB")).Bucket([]byte("FLEET"))
 		b.ForEach(func(k, v []byte) error {
 			var s SatelliteState

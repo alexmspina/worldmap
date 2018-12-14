@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/alexmspina/worldmap/server/helpers"
 	"github.com/alexmspina/worldmap/server/models"
 	"github.com/boltdb/bolt"
 	"github.com/julienschmidt/httprouter"
@@ -26,7 +27,7 @@ func GetStuff2(db *bolt.DB) httprouter.Handle {
 
 	for _, s := range sats {
 		sat := models.GetDBObject(s, db, "DB", "SATPOS")
-		AppendBytes(&bytes, sat)
+		helpers.AppendBytes(&bytes, sat)
 	}
 
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {

@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/boltdb/bolt"
 	satellite "github.com/joshuaferrara/go-satellite"
 )
 
@@ -61,14 +60,14 @@ func GetBeamplanFiles(files []string, fileregex *regexp.Regexp, regexmap map[str
 }
 
 // ProcessInitFiles checks file names against list of regular expressions and calls handlers based on results
-func ProcessInitFiles(files []string, regexmap map[string]*regexp.Regexp, db *bolt.DB) {
+func ProcessInitFiles(files []string, regexmap map[string]*regexp.Regexp) {
 	for _, file := range files {
 		switch true {
 		case regexmap["TARGETS"].MatchString(filepath.Base(file)):
-			FillTargetsBucket(file, db)
+			FillTargetsBucket(file)
 		case regexmap["ZONES"].MatchString(filepath.Base(file)):
-			FillZonesBucket(file, db)
-			FillCatseyesBucket(db)
+			FillZonesBucket(file)
+			FillCatseyesBucket()
 		default:
 			continue
 		}
@@ -76,14 +75,14 @@ func ProcessInitFiles(files []string, regexmap map[string]*regexp.Regexp, db *bo
 }
 
 // ProcessEphemeris takes tle and beamplan and initializes db entries
-func ProcessEphemeris(files []string, regexmap map[string]*regexp.Regexp, db *bolt.DB, bpfilelist map[string]string) map[string]satellite.Satellite {
+func ProcessEphemeris(files []string, regexmap map[string]*regexp.Regexp, bpfilelist map[string]string) map[string]satellite.Satellite {
 	sgp4sats := make(map[string]satellite.Satellite, 0)
 	for _, file := range files {
 		switch true {
 		case regexmap["ephemeris"].MatchString(filepath.Base(file)):
 			tlemap := GetTLES(file)
-			GetBeamplan(tlemap, bpfilelist, db)
-			satStates := GetSatelliteStates(db)
+			GetBeamplan(tlemap, bpfilelist)
+			satStates := GetSatelliteStates()
 			sgp4sats = InitSatelliteSGP4(satStates)
 		default:
 			continue

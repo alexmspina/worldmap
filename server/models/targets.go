@@ -31,7 +31,7 @@ type targetProperties struct {
 }
 
 // FillTargetsBucket initializes a BoltDB bucket from TARGETS file
-func FillTargetsBucket(f string, db *bolt.DB) error {
+func FillTargetsBucket(f string) error {
 	// Open file from filename
 	r := OpenCSV(f)
 
@@ -62,7 +62,7 @@ func FillTargetsBucket(f string, db *bolt.DB) error {
 		featureBytes = bytes.Replace(featureBytes, []byte("\\u0026"), []byte("&"), -1)
 		featureBytes = bytes.Trim(featureBytes, "\r")
 
-		err = db.Update(func(tx *bolt.Tx) error {
+		err = DB.Update(func(tx *bolt.Tx) error {
 			err = tx.Bucket([]byte("DB")).Bucket([]byte("TARGETS")).Put([]byte(id), featureBytes)
 			if err != nil {
 				return fmt.Errorf("could not fill targets bucket: %v", err)
