@@ -11,13 +11,8 @@ import (
 
 	"github.com/alexmspina/worldmap/server/helpers"
 	"github.com/boltdb/bolt"
+	"github.com/graphql-go/graphql"
 )
-
-type targetFeature struct {
-	Type       string           `json:"type"`
-	Geometry   PointGeometry    `json:"geometry"`
-	Properties targetProperties `json:"properties"`
-}
 
 type targetProperties struct {
 	TargetID    string  `json:"targetID"`
@@ -30,6 +25,77 @@ type targetProperties struct {
 	LongName    string  `json:"longName"`
 	FileCode    string  `json:"fileCode"`
 }
+
+// TargetPropsType graphql type for target feature properties
+var TargetPropsType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "Target",
+	Fields: graphql.Fields{
+		"id": &graphql.Field{
+			Type: graphql.String,
+		},
+		"shortName": &graphql.Field{
+			Type: graphql.String,
+		},
+		"altitude": &graphql.Field{
+			Type: graphql.String,
+		},
+		"gatewayFlag": &graphql.Field{
+			Type: graphql.String,
+		},
+		"ttcFlag": &graphql.Field{
+			Type: graphql.String,
+		},
+		"minElTlmAOS": &graphql.Field{
+			Type: graphql.String,
+		},
+		"minElTlmLOS": &graphql.Field{
+			Type: graphql.String,
+		},
+		"longName": &graphql.Field{
+			Type: graphql.String,
+		},
+		"fileCode": &graphql.Field{
+			Type: graphql.String,
+		},
+	},
+})
+
+// TargetFeature geojson struct for targets
+type TargetFeature struct {
+	Type       string           `json:"type"`
+	Geometry   PointGeometry    `json:"geometry"`
+	Properties targetProperties `json:"properties"`
+}
+
+// TargetType graphql object for target features
+var TargetType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "Target",
+	Fields: graphql.Fields{
+		"type": &graphql.Field{
+			Type: graphql.String,
+		},
+		"geometry": &graphql.Field{
+			Type:        PointGeoType,
+			Description: "Get the beams from the current mission",
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+
+				s := params.Source.(TargetFeature)
+
+				return s.Geometry, nil
+			},
+		},
+		"properties": &graphql.Field{
+			Type:        TargetPropsType,
+			Description: "Get the beams from the current mission",
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+
+				s := params.Source.(TargetFeature)
+
+				return s.Properties, nil
+			},
+		},
+	},
+})
 
 // FillTargetsBucket initializes a BoltDB bucket from TARGETS file
 func FillTargetsBucket(f string) error {
@@ -88,7 +154,7 @@ func getHeader(cr *csv.Reader) []string {
 	return record
 }
 
-func buildTargetFeature(r []string) targetFeature {
+func buildTargetFeature(r []string) TargetFeature {
 	lat := helpers.ConvertStringToFloat64(r[2])
 	lon := helpers.ConvertStringToFloat64(r[3])
 	if lon > 180.0 {
@@ -107,7 +173,7 @@ func buildTargetFeature(r []string) targetFeature {
 		LongName:    r[9],
 		FileCode:    r[10],
 	}
-	f := targetFeature{
+	f := TargetFeature{
 		"Feature",
 		geopoint,
 		props,
@@ -118,4 +184,19 @@ func buildTargetFeature(r []string) targetFeature {
 func convertStringToFloat64(s string) float64 {
 	f, _ := strconv.ParseFloat(s, 64)
 	return f
+}
+
+// GetTarget queries bolt db for the desired target
+func GetTarget(s string) TargetFeature {
+	var targetfeature TargetFeature
+	err := DB.Batch(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("DB")).Bucket([]byte("TARGETS"))
+		target := b.Get([]byte(s))
+		json.Unmarshal(target, &targetfeature)
+
+		return nil
+	})
+	helpers.PanicErrors(err)
+
+	return targetfeature
 }

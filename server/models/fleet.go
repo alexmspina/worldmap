@@ -167,7 +167,6 @@ var SatelliteType = graphql.NewObject(graphql.ObjectConfig{
 				s := params.Source.(SatelliteInMotion)
 				currentZones := GetCurrentZone(s.Longitude)
 				currentMissions := GetCurrentMission(s.ID, currentZones)
-				fmt.Println(currentMissions, "\n", len(currentMissions))
 				return currentMissions, nil
 			},
 		},
@@ -406,8 +405,6 @@ func PropagateSatellite(t time.Time, sat satellite.Satellite, id string) {
 	alt, vel, latlng := satellite.ECIToLLA(pos, gmst)
 	latlngdeg := satellite.LatLongDeg(latlng)
 
-	fmt.Println(id, latlngdeg.Longitude)
-
 	satinmotion := SatelliteInMotion{
 		ID:        id,
 		Latitude:  latlngdeg.Latitude,
@@ -455,14 +452,6 @@ func FillSatPosBucket(s SatelliteInMotion, id string) {
 		}
 		return nil
 	})
-}
-
-// FleetTicker propagates satellite location and velocity on a time interval
-func FleetTicker(ticker *time.Ticker, sgp4sats map[string]satellite.Satellite) {
-
-	for t := range ticker.C {
-		UpdateSatPos(t, sgp4sats)
-	}
 }
 
 // GetSatelliteStates pulls the satellite states from the db and converts from json byte to structs

@@ -27,6 +27,10 @@ func main() {
 		result := models.ExecuteQuery(r.URL.Query().Get("query"), models.Schema)
 		json.NewEncoder(w).Encode(result)
 	})
+	router.GET("/target", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		result := models.ExecuteQuery(r.URL.Query().Get("query"), models.Schema)
+		json.NewEncoder(w).Encode(result)
+	})
 	// router.GET("/payloadmissions", handlers.GetStuff2(db))
 
 	log.Fatal(http.ListenAndServe(":8080", router))
