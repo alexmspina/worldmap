@@ -9,6 +9,7 @@ import (
 	"log"
 	"strconv"
 
+	"github.com/alexmspina/worldmap/server/helpers"
 	"github.com/boltdb/bolt"
 )
 
@@ -88,8 +89,8 @@ func getHeader(cr *csv.Reader) []string {
 }
 
 func buildTargetFeature(r []string) targetFeature {
-	lat := ConvertStringToFloat64(r[2])
-	lon := ConvertStringToFloat64(r[3])
+	lat := helpers.ConvertStringToFloat64(r[2])
+	lon := helpers.ConvertStringToFloat64(r[3])
 	if lon > 180.0 {
 		lon = lon - 360.0
 	}
@@ -101,8 +102,8 @@ func buildTargetFeature(r []string) targetFeature {
 		Altitude:    r[4],
 		GatewayFlag: r[5],
 		TTCFlag:     r[6],
-		MinElTlmAOS: ConvertStringToFloat64(r[7]),
-		MinElTlmLOS: ConvertStringToFloat64(r[8]),
+		MinElTlmAOS: helpers.ConvertStringToFloat64(r[7]),
+		MinElTlmLOS: helpers.ConvertStringToFloat64(r[8]),
 		LongName:    r[9],
 		FileCode:    r[10],
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/alexmspina/worldmap/server/helpers"
 	"github.com/boltdb/bolt"
 )
 
@@ -13,7 +14,7 @@ func FillBeamplanBucket(f string, db *bolt.DB, t time.Time) error {
 	r := OpenCSV(f)
 	jsonMap := make([]map[string]string, 0)
 	createBeamplanCollection(r, &jsonMap)
-	rawJSON := FormatJSON(jsonMap)
+	rawJSON := helpers.FormatJSON(jsonMap)
 
 	err := db.Update(func(tx *bolt.Tx) error {
 		err := tx.Bucket([]byte("DB")).Bucket([]byte("BEAMPLANS")).Put([]byte(t.Format(time.RFC3339)), rawJSON)

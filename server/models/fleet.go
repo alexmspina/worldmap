@@ -10,14 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alexmspina/worldmap/server/helpers"
 	"github.com/graphql-go/graphql"
 
 	"github.com/boltdb/bolt"
 	satellite "github.com/joshuaferrara/go-satellite"
 )
-
-// DB main bolt database object
-var DB, _ = SetupDB()
 
 // Fleet struct of all satellite states derived from the tle and beamplan
 type Fleet struct {
@@ -185,12 +183,12 @@ func (s *SatelliteInMotion) SetCurrentMission(m []BeamplanMission) {
 func GetTLES(tle string) map[string]map[string]string {
 	// get pointer to file of tle
 	tlefile, err := os.Open(tle)
-	PanicErrors(err)
+	helpers.PanicErrors(err)
 
 	// read file into byte slices
 	tlereader := io.Reader(tlefile)
 	tlelines, err := ioutil.ReadAll(tlereader)
-	PanicErrors(err)
+	helpers.PanicErrors(err)
 
 	// convert tle byte slice to string and clean it up
 	tlestringlines := string(tlelines)
@@ -227,11 +225,11 @@ func GetBeamplan(tlemap map[string]map[string]string, bpfiles map[string]string)
 
 	for sat, tle := range tlemap {
 		switch true {
-		case StringInSlice(sat, spares):
+		case helpers.StringInSlice(sat, spares):
 			bpfile := bpfiles["SPARE"]
 			satstate := BuildSatelliteState(bpfile, tle, sat)
 			FillFleetBucket(sat, satstate)
-		case StringInSlice(sat, activenotb3):
+		case helpers.StringInSlice(sat, activenotb3):
 			switch sat {
 			case "M001":
 				bpfile := bpfiles["M001"]
@@ -242,7 +240,7 @@ func GetBeamplan(tlemap map[string]map[string]string, bpfiles map[string]string)
 				satstate := BuildSatelliteState(bpfile, tle, sat)
 				FillFleetBucket(sat, satstate)
 			}
-		case StringInSlice(sat, activeb3):
+		case helpers.StringInSlice(sat, activeb3):
 			switch sat {
 			case "M013":
 				bpfile := bpfiles["M013"]
@@ -293,7 +291,7 @@ func BuildSatelliteState(bpfile string, tle map[string]string, satname string) S
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			PanicErrors(err)
+			helpers.PanicErrors(err)
 		}
 
 		satid := record[0]
@@ -386,7 +384,7 @@ func GetSatellitePosition(s string) SatelliteInMotion {
 
 		return nil
 	})
-	PanicErrors(err)
+	helpers.PanicErrors(err)
 
 	return livesat
 }
@@ -408,8 +406,7 @@ func PropagateSatellite(t time.Time, sat satellite.Satellite, id string) {
 	alt, vel, latlng := satellite.ECIToLLA(pos, gmst)
 	latlngdeg := satellite.LatLongDeg(latlng)
 
-	// currentZones := GetCurrentZone(latlngdeg.Longitude, db)
-	// currentMission := GetCurrentMission(id, currentZones, db)
+	fmt.Println(id, latlngdeg.Longitude)
 
 	satinmotion := SatelliteInMotion{
 		ID:        id,
@@ -438,7 +435,7 @@ func GetCurrentMission(satid string, missionids []string) []BeamplanMission {
 
 		return nil
 	})
-	PanicErrors(err)
+	helpers.PanicErrors(err)
 
 	return missions
 }
@@ -447,7 +444,7 @@ func GetCurrentMission(satid string, missionids []string) []BeamplanMission {
 func FillSatPosBucket(s SatelliteInMotion, id string) {
 
 	satposBytes, err := json.MarshalIndent(s, "", "\t")
-	PanicErrors(err)
+	helpers.PanicErrors(err)
 	satposBytes = bytes.Replace(satposBytes, []byte("\\u0026"), []byte("&"), -1)
 	satposBytes = bytes.Trim(satposBytes, "\r")
 
@@ -481,7 +478,7 @@ func GetSatelliteStates() map[string]SatelliteState {
 		})
 		return nil
 	})
-	PanicErrors(err)
+	helpers.PanicErrors(err)
 	return satStates
 }
 

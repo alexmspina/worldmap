@@ -3,8 +3,12 @@ package models
 import (
 	"fmt"
 
+	"github.com/alexmspina/worldmap/server/helpers"
 	"github.com/boltdb/bolt"
 )
+
+// DB main bolt database object
+var DB, _ = SetupDB()
 
 // SetupDB initializes a bolt database
 func SetupDB() (*bolt.DB, error) {
@@ -61,7 +65,7 @@ func GetDbBucket(db *bolt.DB, mb string, b string, l *[][][]byte) {
 		})
 		return nil
 	})
-	PanicErrors(err)
+	helpers.PanicErrors(err)
 }
 
 // GetDBObject retrieves the object from the desired bucket within a particular database and prints it to the screen
