@@ -28,7 +28,7 @@ type targetProperties struct {
 
 // TargetPropsType graphql type for target feature properties
 var TargetPropsType = graphql.NewObject(graphql.ObjectConfig{
-	Name: "Target",
+	Name: "TargetProps",
 	Fields: graphql.Fields{
 		"id": &graphql.Field{
 			Type: graphql.String,
@@ -76,7 +76,7 @@ var TargetType = graphql.NewObject(graphql.ObjectConfig{
 		},
 		"geometry": &graphql.Field{
 			Type:        PointGeoType,
-			Description: "Get the beams from the current mission",
+			Description: "target coordinates",
 			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
 
 				s := params.Source.(TargetFeature)
@@ -86,7 +86,7 @@ var TargetType = graphql.NewObject(graphql.ObjectConfig{
 		},
 		"properties": &graphql.Field{
 			Type:        TargetPropsType,
-			Description: "Get the beams from the current mission",
+			Description: "target properties",
 			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
 
 				s := params.Source.(TargetFeature)

@@ -173,11 +173,6 @@ var SatelliteType = graphql.NewObject(graphql.ObjectConfig{
 	},
 })
 
-// SetCurrentMission receives a pointer to a satelliteInMotion and sets its current mission
-func (s *SatelliteInMotion) SetCurrentMission(m []BeamplanMission) {
-	s.Mission = m
-}
-
 // GetTLES creats a map of tles with map of tle lines
 func GetTLES(tle string) map[string]map[string]string {
 	// get pointer to file of tle

@@ -10,6 +10,7 @@ import (
 
 	"github.com/alexmspina/worldmap/server/helpers"
 	"github.com/boltdb/bolt"
+	"github.com/graphql-go/graphql"
 )
 
 // CatseyeFeature struct modeling geojson polygon struct
@@ -18,6 +19,36 @@ type CatseyeFeature struct {
 	Geometry   PolygonGeometry `json:"geometry"`
 	Properties ZoneProperties  `json:"properties"`
 }
+
+// CatseyeType graphql object for catseye features
+var CatseyeType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "Catseye",
+	Fields: graphql.Fields{
+		"type": &graphql.Field{
+			Type: graphql.String,
+		},
+		"geometry": &graphql.Field{
+			Type:        PolyGeoType,
+			Description: "coordinates that build catseye",
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+
+				s := params.Source.(CatseyeFeature)
+
+				return s.Geometry, nil
+			},
+		},
+		"properties": &graphql.Field{
+			Type:        ZonePropsType,
+			Description: "zone properties",
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+
+				s := params.Source.(CatseyeFeature)
+
+				return s.Properties, nil
+			},
+		},
+	},
+})
 
 // ZoneFeature struct that models json object for zones
 type ZoneFeature struct {
@@ -34,6 +65,31 @@ type ZoneProperties struct {
 	EndLng    float64 `json:"endlng"`
 	Gateway   string  `json:"gateway"`
 }
+
+// ZonePropsType graphql type for target feature properties
+var ZonePropsType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "CatseyeProps",
+	Fields: graphql.Fields{
+		"subregion": &graphql.Field{
+			Type: graphql.String,
+		},
+		"id": &graphql.Field{
+			Type: graphql.String,
+		},
+		"startLng": &graphql.Field{
+			Type: graphql.Float,
+		},
+		"centerLng": &graphql.Field{
+			Type: graphql.Float,
+		},
+		"endLng": &graphql.Field{
+			Type: graphql.Float,
+		},
+		"gateway": &graphql.Field{
+			Type: graphql.String,
+		},
+	},
+})
 
 // FillZonesBucket initializes a BoltDB bucket from TARGETS file
 func FillZonesBucket(f string) error {
@@ -106,7 +162,7 @@ func FillCatseyesBucket() {
 
 	// Put new catseye features in db
 	for _, eye := range catseyes {
-		id := eye.Properties.Subregion
+		id := eye.Properties.ZoneID
 
 		featureBytes, err := json.MarshalIndent(eye, "", "\t")
 		if err != nil {
@@ -225,11 +281,6 @@ func GetCurrentZone(satlng float64) []string {
 			zonestartlng := zone.Properties.StartLng
 			zoneendlng := zone.Properties.EndLng
 
-			// if satlng > zonestartlng && satlng < zoneendlng {
-			// 	fmt.Println(string(k), zonestartlng, zoneendlng)
-			// 	zoneid = append(zoneid, string(k))
-			// }
-			// return nil
 			// shift longitudes less than 0 to 0 - 360 range for easy zone placement
 			if zoneendlng < zonestartlng {
 				zoneendlng = zoneendlng + 360.0
@@ -252,4 +303,19 @@ func GetCurrentZone(satlng float64) []string {
 	})
 	helpers.PanicErrors(err)
 	return zoneid
+}
+
+// GetCatseye queries bolt db for the desired target
+func GetCatseye(s string) CatseyeFeature {
+	var catseyefeature CatseyeFeature
+	err := DB.Batch(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("DB")).Bucket([]byte("CATSEYES"))
+		catseye := b.Get([]byte(s))
+		json.Unmarshal(catseye, &catseyefeature)
+
+		return nil
+	})
+	helpers.PanicErrors(err)
+
+	return catseyefeature
 }
