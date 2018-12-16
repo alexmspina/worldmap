@@ -225,6 +225,11 @@ func GetCurrentZone(satlng float64) []string {
 			zonestartlng := zone.Properties.StartLng
 			zoneendlng := zone.Properties.EndLng
 
+			// if satlng > zonestartlng && satlng < zoneendlng {
+			// 	fmt.Println(string(k), zonestartlng, zoneendlng)
+			// 	zoneid = append(zoneid, string(k))
+			// }
+			// return nil
 			// shift longitudes less than 0 to 0 - 360 range for easy zone placement
 			if zoneendlng < zonestartlng {
 				zoneendlng = zoneendlng + 360.0

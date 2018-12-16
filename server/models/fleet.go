@@ -425,9 +425,12 @@ func GetCurrentMission(satid string, missionids []string) []BeamplanMission {
 		sat := b.Get([]byte(satid))
 		var satstate SatelliteState
 		json.Unmarshal(sat, &satstate)
-
-		for m := range missionids {
-			missions = append(missions, satstate.Missions[m])
+		for _, mid := range missionids {
+			for _, m := range satstate.Missions {
+				if mid == m.ID {
+					missions = append(missions, m)
+				}
+			}
 		}
 
 		return nil
