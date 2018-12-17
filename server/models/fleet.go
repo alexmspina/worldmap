@@ -469,8 +469,18 @@ func GetSatelliteStates() map[string]SatelliteState {
 	return satStates
 }
 
-// GetMovingSatelliteFleet pulls the satellite positions as the move from the db and converts from json byte to structs
-func GetMovingSatelliteFleet() []SatelliteInMotion {
+// InitSatelliteSGP4 takes satellite state structs and creates a satellite.Satellite object with sgp4 model initialized
+func InitSatelliteSGP4(satStates map[string]SatelliteState) map[string]satellite.Satellite {
+	sgp4sats := make(map[string]satellite.Satellite, 0)
+	for i, sat := range satStates {
+		sgp4sats[i] = satellite.TLEToSat(sat.TLELine1, sat.TLELine2, "wgs84")
+	}
+
+	return sgp4sats
+}
+
+// GetMovingSatellites returns all the satellites from SATPOS bucket
+func GetMovingSatellites() []SatelliteInMotion {
 	sats := make([]SatelliteInMotion, 0)
 	err := DB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("DB")).Bucket([]byte("SATPOS"))
@@ -484,14 +494,4 @@ func GetMovingSatelliteFleet() []SatelliteInMotion {
 	})
 	helpers.PanicErrors(err)
 	return sats
-}
-
-// InitSatelliteSGP4 takes satellite state structs and creates a satellite.Satellite object with sgp4 model initialized
-func InitSatelliteSGP4(satStates map[string]SatelliteState) map[string]satellite.Satellite {
-	sgp4sats := make(map[string]satellite.Satellite, 0)
-	for i, sat := range satStates {
-		sgp4sats[i] = satellite.TLEToSat(sat.TLELine1, sat.TLELine2, "wgs84")
-	}
-
-	return sgp4sats
 }
