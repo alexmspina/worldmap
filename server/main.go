@@ -28,6 +28,10 @@ func main() {
 		result := models.ExecuteQuery(r.URL.Query().Get("query"), models.Schema)
 		json.NewEncoder(w).Encode(result)
 	})
+	router.GET("/satellites", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		result := models.ExecuteQuery(r.URL.Query().Get("query"), models.Schema)
+		json.NewEncoder(w).Encode(result)
+	})
 	router.GET("/target", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		result := models.ExecuteQuery(r.URL.Query().Get("query"), models.Schema)
 		json.NewEncoder(w).Encode(result)
