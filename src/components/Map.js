@@ -5,6 +5,50 @@ import geoJSONmap from '../files/maps/geoJSONmap.json'
 import stylemap from '../style/Map/stylemap'
 import styletarget from '../style/Targets/styletarget'
 import targetsFile from '../files/targets/TARGETS_275.json'
+import gql from 'graphql-tag'
+// import { graphql } from 'react-apollo'
+import { SubscriptionClient } from 'subscriptions-transport-ws'
+import { ApolloClient } from 'apollo-boost'
+import { WebSocketLink, HttpLink } from 'apollo-link-ws'
+import { split } from 'apollo-link'
+import { getMainDefinition } from 'apollo-utilities'
+
+const httpLink = new HttpLink({
+  uri: 'http://localhost:3000/targets'
+})
+
+const wsLink = new WebSocketLink({
+  uri: `ws://localhost:3000/subscriptions`,
+  options: {
+    reconnect: true
+  }
+})
+
+const link = split(
+  ({ query }) => 
+)
+
+// const GRAPHQL_ENDPOINT = 'ws://localhost:8080/subscriptions'
+
+// const client = new SubscriptionClient(GRAPHQL_ENDPOINT, {
+//   reconnect: true
+// })
+
+// const apolloClient = new ApolloClient({
+//   networkInterface: client
+// })
+
+// console.log('just before the query')
+
+// apolloClient
+//   .query({
+//     query: gql`
+//       {
+//         satellites
+//       }
+//     `
+//   })
+//   .then(result => console.log(result))
 
 function Map ({ svgMapBounds }) {
   // create map reference

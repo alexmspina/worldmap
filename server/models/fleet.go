@@ -469,6 +469,23 @@ func GetSatelliteStates() map[string]SatelliteState {
 	return satStates
 }
 
+// GetMovingSatelliteFleet pulls the satellite positions as the move from the db and converts from json byte to structs
+func GetMovingSatelliteFleet() []SatelliteInMotion {
+	sats := make([]SatelliteInMotion, 0)
+	err := DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("DB")).Bucket([]byte("SATPOS"))
+		b.ForEach(func(k, v []byte) error {
+			var s SatelliteInMotion
+			json.Unmarshal(v, &s)
+			sats = append(sats, s)
+			return nil
+		})
+		return nil
+	})
+	helpers.PanicErrors(err)
+	return sats
+}
+
 // InitSatelliteSGP4 takes satellite state structs and creates a satellite.Satellite object with sgp4 model initialized
 func InitSatelliteSGP4(satStates map[string]SatelliteState) map[string]satellite.Satellite {
 	sgp4sats := make(map[string]satellite.Satellite, 0)
