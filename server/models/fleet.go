@@ -478,3 +478,20 @@ func InitSatelliteSGP4(satStates map[string]SatelliteState) map[string]satellite
 
 	return sgp4sats
 }
+
+// GetMovingSatellites returns all the satellites from SATPOS bucket
+func GetMovingSatellites() []SatelliteInMotion {
+	sats := make([]SatelliteInMotion, 0)
+	err := DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("DB")).Bucket([]byte("SATPOS"))
+		b.ForEach(func(k, v []byte) error {
+			var s SatelliteInMotion
+			json.Unmarshal(v, &s)
+			sats = append(sats, s)
+			return nil
+		})
+		return nil
+	})
+	helpers.PanicErrors(err)
+	return sats
+}

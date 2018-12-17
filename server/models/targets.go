@@ -200,3 +200,21 @@ func GetTarget(s string) TargetFeature {
 
 	return targetfeature
 }
+
+// GetTargets grabs all the targets from the TARGETS bucket
+func GetTargets() []TargetFeature {
+	var targetFeatureList []TargetFeature
+	err := DB.Batch(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("DB")).Bucket([]byte("TARGETS"))
+		b.ForEach(func(k, v []byte) error {
+			var targetFeature TargetFeature
+			json.Unmarshal(v, &targetFeature)
+			targetFeatureList = append(targetFeatureList, targetFeature)
+			return nil
+		})
+		return nil
+	})
+	helpers.PanicErrors(err)
+
+	return targetFeatureList
+}
