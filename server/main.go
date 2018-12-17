@@ -23,6 +23,7 @@ func main() {
 
 	router := httprouter.New()
 	router.GET("/", handlers.Index)
+	router.GET("/subscriptions", handlers.WrapHandler(handlers.GraphqlwsHandler))
 	router.GET("/satellite", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		result := models.ExecuteQuery(r.URL.Query().Get("query"), models.Schema)
 		json.NewEncoder(w).Encode(result)
