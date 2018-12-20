@@ -1,16 +1,27 @@
-import React, { useState } from 'react'
+import React from 'react'
 import Map from './components/Map'
 import style from './style/App/App.module.css'
-import DontReadTheComments from './components/subscriptions'
+import { ApolloClient } from 'apollo-client'
+import { ApolloProvider } from 'react-apollo'
+import { HttpLink } from 'apollo-link-http'
+import { InMemoryCache } from 'apollo-cache-inmemory'
+// import TargetsLayer from './components/TargetsQuery'
 
 function App () {
-  const svgMapBounds = useState([[-90, -180.4], [89.5, 180]])
+
+  const client = new ApolloClient({
+    uri: 'http://localhost:3000/graphql',
+    link: new HttpLink(),
+    cache: new InMemoryCache()
+  })
 
   return (
-    <div className={style.app}>
-      <Map svgMapBounds={svgMapBounds} />
-      <DontReadTheComments />
-    </div>
+    <ApolloProvider client={client} >
+      <div className={style.app}>
+        <Map />
+      </div>
+    </ApolloProvider>
+
   )
 }
 

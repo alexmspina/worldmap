@@ -11,6 +11,34 @@ import (
 
 var upgrader = websocket.Upgrader{} // use default options
 
+// CorsHandler handles cross origin requests
+func CorsHandler(h http.Handler) httprouter.Handle {
+	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		if r.Method == "OPTIONS" {
+			//handle preflight in here
+		} else {
+			h.ServeHTTP(w, r)
+		}
+	}
+}
+
+// DisableCors disables cors filtered requests and allows options requests from graphql client
+func DisableCors(h http.Handler) httprouter.Handle {
+	return httprouter.Handle(func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, Content-Length, Accept-Encoding")
+		if r.Method == "OPTIONS" {
+			w.Header().Set("Access-Control-Max-Age", "86400")
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		h.ServeHTTP(w, r)
+	})
+}
+
 func echo(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"log"
 	"net/http"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/alexmspina/worldmap/server/appmount"
 	"github.com/alexmspina/worldmap/server/handlers"
-	"github.com/alexmspina/worldmap/server/models"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -23,27 +21,12 @@ func main() {
 
 	router := httprouter.New()
 	router.GET("/", handlers.Index)
-	router.GET("/subscriptions", handlers.WrapHandler(handlers.GraphqlwsHandler))
-	router.GET("/satellite", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-		result := models.ExecuteQuery(r.URL.Query().Get("query"), models.Schema)
-		json.NewEncoder(w).Encode(result)
-	})
-	router.GET("/satellites", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-		result := models.ExecuteQuery(r.URL.Query().Get("query"), models.Schema)
-		json.NewEncoder(w).Encode(result)
-	})
-	router.GET("/target", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-		result := models.ExecuteQuery(r.URL.Query().Get("query"), models.Schema)
-		json.NewEncoder(w).Encode(result)
-	})
-	router.GET("/targets", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-		result := models.ExecuteQuery(r.URL.Query().Get("query"), models.Schema)
-		json.NewEncoder(w).Encode(result)
-	})
-	router.GET("/catseye", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-		result := models.ExecuteQuery(r.URL.Query().Get("query"), models.Schema)
-		json.NewEncoder(w).Encode(result)
-	})
+	router.POST("/graphql", handlers.DisableCors(handlers.H))
+	// router.GET("/subscriptions", handlers.WrapHandler(handlers.GraphqlwsHandler))
+	// router.POST("/graphql", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	// 	result := models.ExecuteQuery(r.URL.Query().Get("query"), models.Schema)
+	// 	json.NewEncoder(w).Encode(result)
+	// })
 
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
