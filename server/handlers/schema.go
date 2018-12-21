@@ -10,12 +10,6 @@ import (
 	"github.com/alexmspina/worldmap/server/models"
 )
 
-// H test graphql query handler
-var H = handler.New(&handler.Config{
-	Schema: &models.Schema,
-	Pretty: true,
-})
-
 // GraphqlHandlerFunc handler func that uses graphql-go handler
 func GraphqlHandlerFunc(w http.ResponseWriter, r *http.Request) {
 	// get query
