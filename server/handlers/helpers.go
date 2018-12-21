@@ -2,14 +2,10 @@ package handlers
 
 import (
 	"context"
-	"log"
 	"net/http"
 
-	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
 )
-
-var upgrader = websocket.Upgrader{} // use default options
 
 // DisableCors disables cors filtered requests and allows options requests from graphql client
 func DisableCors(h http.Handler) httprouter.Handle {
@@ -28,28 +24,6 @@ func DisableCors(h http.Handler) httprouter.Handle {
 		// json.NewEncoder(w).Encode(result)
 		h.ServeHTTP(w, r)
 	})
-}
-
-func echo(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	c, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Print("upgrade:", err)
-		return
-	}
-	defer c.Close()
-	for {
-		mt, message, err := c.ReadMessage()
-		if err != nil {
-			log.Println("read:", err)
-			break
-		}
-		log.Printf("recv: %s", message)
-		err = c.WriteMessage(mt, message)
-		if err != nil {
-			log.Println("write:", err)
-			break
-		}
-	}
 }
 
 // StringKey creates a special type so it doesn't conflict with standard strings
