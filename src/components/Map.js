@@ -8,6 +8,7 @@ import { ApolloClient } from 'apollo-client'
 import { HttpLink } from 'apollo-link-http'
 import { InMemoryCache } from 'apollo-cache-inmemory'
 import gql from 'graphql-tag'
+import satelliteIcon from '../images/icons/satellite.png'
 
 function Map () {
   const client = new ApolloClient({
@@ -103,8 +104,19 @@ function Map () {
       pollInterval: 1000
     })
 
+    const satelliteHere = L.icon({
+      iconUrl: satelliteIcon,
+      iconSize: [38, 95]
+    })
+
+    const plotSats = (satellites) => {
+      satellites.map(satellite => {
+        return L.marker([satellite.latitude, satellite.longitude], { icon: satelliteHere }).addTo(mapRef.current).bindPopup(`${satellite.id} longitude: ${satellite.longitude}`)
+      })
+    }
+
     satelliteQuery.subscribe({
-      next: (result) => console.log(result)
+      next: (result) => plotSats(result.data.satellites)
     })
   }, [])
 
