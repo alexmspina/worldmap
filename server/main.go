@@ -19,9 +19,10 @@ func main() {
 	tickerChannel := time.NewTicker(time.Second).C
 	go appmount.AppMount(tickerChannel, dir)
 
+	graphqlHandler := http.HandlerFunc(handlers.GraphqlHandlerFunc)
 	router := httprouter.New()
 	router.GET("/", handlers.Index)
-	router.POST("/graphql", handlers.DisableCors(handlers.H))
+	router.POST("/graphql", handlers.DisableCors(graphqlHandler))
 	// router.GET("/subscriptions", handlers.WrapHandler(handlers.GraphqlwsHandler))
 	// router.POST("/graphql", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	// 	result := models.ExecuteQuery(r.URL.Query().Get("query"), models.Schema)

@@ -14,32 +14,6 @@ import (
 	"github.com/graphql-go/graphql"
 )
 
-// TargetFeatureCollection entire geojson feature collection struct for targets
-type TargetFeatureCollection struct {
-	Type     string          `json:"type"`
-	Features []TargetFeature `json:"features"`
-}
-
-// TargetFeatureCollectionType graphql object for target feature collections
-var TargetFeatureCollectionType = graphql.NewObject(graphql.ObjectConfig{
-	Name: "TargetFeatureCollection",
-	Fields: graphql.Fields{
-		"type": &graphql.Field{
-			Type: graphql.String,
-		},
-		"features": &graphql.Field{
-			Type:        graphql.NewList(TargetType),
-			Description: "target features",
-			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
-
-				s := params.Source.(TargetFeatureCollection)
-
-				return s.Features, nil
-			},
-		},
-	},
-})
-
 type targetProperties struct {
 	TargetID    string  `json:"targetID"`
 	ShortName   string  `json:"shortName"`
@@ -118,6 +92,32 @@ var TargetType = graphql.NewObject(graphql.ObjectConfig{
 				s := params.Source.(TargetFeature)
 
 				return s.Properties, nil
+			},
+		},
+	},
+})
+
+// TargetFeatureCollection entire geojson feature collection struct for targets
+type TargetFeatureCollection struct {
+	Type     string          `json:"type"`
+	Features []TargetFeature `json:"features"`
+}
+
+// TargetFeatureCollectionType graphql object for target feature collections
+var TargetFeatureCollectionType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "TargetFeatureCollection",
+	Fields: graphql.Fields{
+		"type": &graphql.Field{
+			Type: graphql.String,
+		},
+		"features": &graphql.Field{
+			Type:        graphql.NewList(TargetType),
+			Description: "target features",
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+
+				s := params.Source.(TargetFeatureCollection)
+
+				return s.Features, nil
 			},
 		},
 	},
