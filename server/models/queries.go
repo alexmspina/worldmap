@@ -30,16 +30,20 @@ var RootQuery = graphql.NewObject(graphql.ObjectConfig{
 					return livesat, nil
 				}
 
-				return SatelliteInMotion{}, nil
+				return SatelliteFeature{}, nil
 			},
 		},
-		"satellites": &graphql.Field{
-			Type:        graphql.NewList(SatelliteType),
+		"satelliteFeatureCollection": &graphql.Field{
+			Type:        SatelliteFeatureCollectionType,
 			Description: "Get all targets and their properties",
 			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
 				fmt.Println("REQUESTING SATELLITES...")
 				satellites := GetMovingSatellites()
-				return satellites, nil
+				satelliteFeatureCollection := SatelliteFeatureCollection{
+					Type:     "featureCollection",
+					Features: satellites,
+				}
+				return satelliteFeatureCollection, nil
 			},
 		},
 		"target": &graphql.Field{

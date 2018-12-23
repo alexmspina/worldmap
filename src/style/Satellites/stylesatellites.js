@@ -1,5 +1,5 @@
 const stylesatellite = {
-  radius: 4,
+  radius: 5,
   fillColor: '#994ae8',
   color: '#48aaf2',
   weight: 1,

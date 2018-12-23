@@ -130,44 +130,97 @@ var BeamPropsType = graphql.NewObject(graphql.ObjectConfig{
 	},
 })
 
-// SatelliteInMotion structure to hold location and velocity data that is updated in real time and pushed to db
-type SatelliteInMotion struct {
-	ID        string            `json:"satelliteID"`
-	Latitude  float64           `json:"latitude"`
-	Longitude float64           `json:"longitude"`
-	Velocity  float64           `json:"velocity"`
-	Altitude  float64           `json:"altitude"`
-	Mission   []BeamplanMission `json:"mission"`
+type satelliteProperties struct {
+	ID       string            `json:"id"`
+	Velocity float64           `json:"velocity"`
+	Altitude float64           `json:"altitude"`
+	Mission  []BeamplanMission `json:"mission"`
 }
 
-// SatelliteType graphql object for satellite queries
-var SatelliteType = graphql.NewObject(graphql.ObjectConfig{
-	Name: "Satellite",
+// SatellitePropsType graphql type for target feature properties
+var SatellitePropsType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "SatelliteProps",
 	Fields: graphql.Fields{
 		"id": &graphql.Field{
 			Type: graphql.String,
 		},
-		"latitude": &graphql.Field{
-			Type: graphql.Float,
-		},
-		"longitude": &graphql.Field{
-			Type: graphql.Float,
-		},
 		"velocity": &graphql.Field{
-			Type: graphql.Float,
+			Type: graphql.String,
 		},
 		"altitude": &graphql.Field{
-			Type: graphql.Float,
+			Type: graphql.String,
 		},
 		"mission": &graphql.Field{
 			Type:        graphql.NewList(MissionType),
-			Description: "Get the missions currently serviced by the satellite",
+			Description: "Get the beams from the current mission",
 			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
 
-				s := params.Source.(SatelliteInMotion)
-				currentZones := GetCurrentZone(s.Longitude)
-				currentMissions := GetCurrentMission(s.ID, currentZones)
-				return currentMissions, nil
+				s := params.Source.(satelliteProperties)
+
+				return s.Mission, nil
+			},
+		},
+	},
+})
+
+// SatelliteFeature geoJSON structure for satellites in motion
+type SatelliteFeature struct {
+	Type       string              `json:"type"`
+	Geometry   PointGeometry       `json:"geometry"`
+	Properties satelliteProperties `json:"properties"`
+}
+
+// SatelliteType graphql object for satellite features
+var SatelliteType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "Satellite",
+	Fields: graphql.Fields{
+		"type": &graphql.Field{
+			Type: graphql.String,
+		},
+		"geometry": &graphql.Field{
+			Type:        PointGeoType,
+			Description: "satellite coordinates",
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+
+				s := params.Source.(SatelliteFeature)
+
+				return s.Geometry, nil
+			},
+		},
+		"properties": &graphql.Field{
+			Type:        SatellitePropsType,
+			Description: "satellite properties",
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+
+				s := params.Source.(SatelliteFeature)
+
+				return s.Properties, nil
+			},
+		},
+	},
+})
+
+// SatelliteFeatureCollection entire geojson feature collection struct for satellites
+type SatelliteFeatureCollection struct {
+	Type     string             `json:"type"`
+	Features []SatelliteFeature `json:"features"`
+}
+
+// SatelliteFeatureCollectionType graphql object for satellite feature collections
+var SatelliteFeatureCollectionType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "SatelliteFeatureCollection",
+	Fields: graphql.Fields{
+		"type": &graphql.Field{
+			Type: graphql.String,
+		},
+		"features": &graphql.Field{
+			Type:        graphql.NewList(SatelliteType),
+			Description: "satellite features",
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+
+				s := params.Source.(SatelliteFeatureCollection)
+
+				return s.Features, nil
 			},
 		},
 	},
@@ -369,8 +422,8 @@ func BuildSatelliteState(bpfile string, tle map[string]string, satname string) S
 }
 
 // GetSatellitePosition gets the current satellite position from SATPOS db
-func GetSatellitePosition(s string) SatelliteInMotion {
-	var livesat SatelliteInMotion
+func GetSatellitePosition(s string) SatelliteFeature {
+	var livesat SatelliteFeature
 	err := DB.Batch(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("DB")).Bucket([]byte("SATPOS"))
 		sat := b.Get([]byte(s))
@@ -386,12 +439,33 @@ func GetSatellitePosition(s string) SatelliteInMotion {
 // UpdateSatPos updates satellite positions using go rout
 func UpdateSatPos(t time.Time, sgp4sats map[string]satellite.Satellite) {
 	for i, sat := range sgp4sats {
-		PropagateSatellite(t, sat, i)
+		BuildSatelliteFeature(t, sat, i)
 	}
 }
 
 // PropagateSatellite take a satellite.Satellite struct and propagates it. Then pushes it to SatelliteInMotion channel
-func PropagateSatellite(t time.Time, sat satellite.Satellite, id string) {
+// func PropagateSatellite(t time.Time, sat satellite.Satellite, id string) {
+// 	utc := t.UTC()
+// 	y, m, d := utc.Date()
+// 	h, min, sec := utc.Clock()
+// 	gmst := satellite.GSTimeFromDate(y, int(m), d, h, min, sec)
+// 	pos, _ := satellite.Propagate(sat, y, int(m), d, h, min, sec)
+// 	alt, vel, latlng := satellite.ECIToLLA(pos, gmst)
+// 	latlngdeg := satellite.LatLongDeg(latlng)
+
+// 	satinmotion := SatelliteInMotion{
+// 		ID:        id,
+// 		Latitude:  latlngdeg.Latitude,
+// 		Longitude: latlngdeg.Longitude,
+// 		Velocity:  vel,
+// 		Altitude:  alt,
+// 	}
+
+// 	FillSatPosBucket(satinmotion, id)
+// }
+
+// BuildSatelliteFeature take a satellite.Satellite struct and propagates it. Then pushes it to SatelliteInMotion channel
+func BuildSatelliteFeature(t time.Time, sat satellite.Satellite, id string) {
 	utc := t.UTC()
 	y, m, d := utc.Date()
 	h, min, sec := utc.Clock()
@@ -400,15 +474,26 @@ func PropagateSatellite(t time.Time, sat satellite.Satellite, id string) {
 	alt, vel, latlng := satellite.ECIToLLA(pos, gmst)
 	latlngdeg := satellite.LatLongDeg(latlng)
 
-	satinmotion := SatelliteInMotion{
-		ID:        id,
-		Latitude:  latlngdeg.Latitude,
-		Longitude: latlngdeg.Longitude,
-		Velocity:  vel,
-		Altitude:  alt,
+	coordinates := []float64{latlngdeg.Longitude, latlngdeg.Latitude}
+	geopoint := PointGeometry{"Point", coordinates}
+
+	currentZones := GetCurrentZone(latlngdeg.Longitude)
+	currentMissions := GetCurrentMission(id, currentZones)
+
+	props := satelliteProperties{
+		ID:       id,
+		Velocity: vel,
+		Altitude: alt,
+		Mission:  currentMissions,
 	}
 
-	FillSatPosBucket(satinmotion, id)
+	satFeature := SatelliteFeature{
+		"Feature",
+		geopoint,
+		props,
+	}
+
+	FillSatPosBucket(satFeature, id)
 }
 
 // GetCurrentMission gets the current mission from sat state object
@@ -436,7 +521,7 @@ func GetCurrentMission(satid string, missionids []string) []BeamplanMission {
 }
 
 // FillSatPosBucket fills the satellite position bucket with a satellite in motion object
-func FillSatPosBucket(s SatelliteInMotion, id string) {
+func FillSatPosBucket(s SatelliteFeature, id string) {
 
 	satposBytes, err := json.MarshalIndent(s, "", "\t")
 	helpers.PanicErrors(err)
@@ -480,12 +565,12 @@ func InitSatelliteSGP4(satStates map[string]SatelliteState) map[string]satellite
 }
 
 // GetMovingSatellites returns all the satellites from SATPOS bucket
-func GetMovingSatellites() []SatelliteInMotion {
-	sats := make([]SatelliteInMotion, 0)
+func GetMovingSatellites() []SatelliteFeature {
+	sats := make([]SatelliteFeature, 0)
 	err := DB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("DB")).Bucket([]byte("SATPOS"))
 		b.ForEach(func(k, v []byte) error {
-			var s SatelliteInMotion
+			var s SatelliteFeature
 			json.Unmarshal(v, &s)
 			sats = append(sats, s)
 			return nil

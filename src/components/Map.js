@@ -16,7 +16,6 @@ import { HttpLink } from 'apollo-link-http'
 import { InMemoryCache } from 'apollo-cache-inmemory'
 
 // Queries
-import gql from 'graphql-tag'
 import SatelliteQuery from './../queries/satelliteQuery'
 import TargetsQuery from './../queries/targetsQuery'
 
@@ -69,24 +68,23 @@ function Map () {
       pollInterval: 1000
     })
 
-    const satelliteSVGstring = "<svg id='satellite' viewBox='0 0 131.3 113.5' className='footer__form__button__svg'><path className='footer__button__svg__path' d='M58.5,76.3l-10.3-8.2l25.2-32l10.3,8.2L58.5,76.3z M99,65.7l-17.5,3.4L82,87.5l31.3,25l17.1-21.8L99,65.7z,M32.3,47.8L32.3,47.8l17.5-3.4L49.4,26L18.1,1L1,22.8L32.3,47.8z M81.5,69.1l-10.7-8.3 M49.7,44.2l9.9,7.7' stroke='#ffffff' strokeWidth='4' /></svg>"
-
-    const satelliteIconUri = encodeURI('data:image/svg+xml,' + satelliteSVGstring).replace('#', '%23')
-
-    const satelliteHere = L.icon({
-      iconUrl: satelliteIconUri,
-      iconSize: [38, 95]
-    })
-
     const plotSats = (satellites) => {
-      satellites.map(satellite => {
-        console.log(satellite)
-        return L.marker([satellite.latitude, satellite.longitude], { icon: satelliteHere }).addTo(mapRef.current).bindPopup(`${satellite.id} longitude: ${satellite.longitude}`)
+      const satellitesLayer = L.geoJSON(satellites, {
+        pointToLayer: function (feature, latlng) {
+          return L.circleMarker(latlng, stylesatellite)
+        }
       })
+
+      if (mapRef.current !== null) {
+        satellitesLayer.removeFrom(mapRef.current)
+        mapRef.current.addLayer(satellitesLayer)
+      } else {
+        // mapRef.current.addLayer(satellitesLayer)
+      }
     }
 
     satelliteQuery.subscribe({
-      next: (result) => plotSats(result.data.satellites)
+      next: (result) => plotSats(result.data.satelliteFeatureCollection)
     })
   }, [])
 

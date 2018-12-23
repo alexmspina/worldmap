@@ -2,16 +2,16 @@ import gql from 'graphql-tag'
 
 const TargetsQuery = gql`{
   targetFeatureCollection{
-    type
+    type,
     features {
-      type
+      type,
       geometry {
-        type
-        coordinates
-      }
+        type,
+        coordinates,
+      },
       properties {
-        shortName
-      }
+        shortName,
+      },
     }
   }
 }`
