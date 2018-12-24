@@ -74,13 +74,7 @@ function Map () {
           return L.circleMarker(latlng, stylesatellite)
         }
       })
-
-      if (mapRef.current !== null) {
-        satellitesLayer.removeFrom(mapRef.current)
-        mapRef.current.addLayer(satellitesLayer)
-      } else {
-        // mapRef.current.addLayer(satellitesLayer)
-      }
+      mapRef.current.addLayer(satellitesLayer)
     }
 
     satelliteQuery.subscribe({

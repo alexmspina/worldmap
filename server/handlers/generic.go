@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
@@ -9,6 +8,5 @@ import (
 
 // Index initial path resolved by server
 func Index(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-
-	fmt.Fprint(w, "Welcome!\n")
+	http.ServeFile(w, r, "C:/Users/aspina/go/src/github.com/alexmspina/worldmap/server/build/index.html")
 }

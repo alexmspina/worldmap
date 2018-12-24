@@ -13,21 +13,23 @@ import (
 
 func main() {
 	// parse command-line flag to determine root directory location of necessary files
-	dir := flag.String("dir", "No directory provided", "input the directory where the initial files are located")
-	appmount.ParseFlag(dir)
+	dir := flag.String("dir", "No data directory provided", "input the directory where the initial data files are located")
+	// bld := flag.String("bld", "No duild directory provided", "input the directory where the build files are located")
+
+	flag.Parse()
 
 	tickerChannel := time.NewTicker(time.Second).C
 	go appmount.AppMount(tickerChannel, dir)
 
 	graphqlHandler := http.HandlerFunc(handlers.GraphqlHandlerFunc)
 	router := httprouter.New()
+
 	router.GET("/", handlers.Index)
 	router.POST("/graphql", handlers.DisableCors(graphqlHandler))
-	// router.GET("/subscriptions", handlers.WrapHandler(handlers.GraphqlwsHandler))
-	// router.POST("/graphql", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	// 	result := models.ExecuteQuery(r.URL.Query().Get("query"), models.Schema)
-	// 	json.NewEncoder(w).Encode(result)
-	// })
+	// router.ServeFiles(*bld, http.Dir("index.html"))
+
+	router.ServeFiles("/build/*filepath", http.Dir("static"))
 
 	log.Fatal(http.ListenAndServe(":8080", router))
+	// log.Fatal(http.ListenAndServe(":8080", http.FileServer(http.Dir(*bld))))
 }
