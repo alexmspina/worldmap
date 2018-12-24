@@ -37,7 +37,6 @@ var RootQuery = graphql.NewObject(graphql.ObjectConfig{
 			Type:        SatelliteFeatureCollectionType,
 			Description: "Get all targets and their properties",
 			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
-				fmt.Println("REQUESTING SATELLITES...")
 				satellites := GetMovingSatellites()
 				satelliteFeatureCollection := SatelliteFeatureCollection{
 					Type:     "featureCollection",
@@ -68,7 +67,6 @@ var RootQuery = graphql.NewObject(graphql.ObjectConfig{
 			Type:        TargetFeatureCollectionType,
 			Description: "Get all targets and their properties",
 			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
-				fmt.Println("REQUESTING TARGETS...")
 				targets := GetTargets()
 				targetFeatureCollection := TargetFeatureCollection{
 					Type:     "featureCollection",

@@ -443,27 +443,6 @@ func UpdateSatPos(t time.Time, sgp4sats map[string]satellite.Satellite) {
 	}
 }
 
-// PropagateSatellite take a satellite.Satellite struct and propagates it. Then pushes it to SatelliteInMotion channel
-// func PropagateSatellite(t time.Time, sat satellite.Satellite, id string) {
-// 	utc := t.UTC()
-// 	y, m, d := utc.Date()
-// 	h, min, sec := utc.Clock()
-// 	gmst := satellite.GSTimeFromDate(y, int(m), d, h, min, sec)
-// 	pos, _ := satellite.Propagate(sat, y, int(m), d, h, min, sec)
-// 	alt, vel, latlng := satellite.ECIToLLA(pos, gmst)
-// 	latlngdeg := satellite.LatLongDeg(latlng)
-
-// 	satinmotion := SatelliteInMotion{
-// 		ID:        id,
-// 		Latitude:  latlngdeg.Latitude,
-// 		Longitude: latlngdeg.Longitude,
-// 		Velocity:  vel,
-// 		Altitude:  alt,
-// 	}
-
-// 	FillSatPosBucket(satinmotion, id)
-// }
-
 // BuildSatelliteFeature take a satellite.Satellite struct and propagates it. Then pushes it to SatelliteInMotion channel
 func BuildSatelliteFeature(t time.Time, sat satellite.Satellite, id string) {
 	utc := t.UTC()
