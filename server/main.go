@@ -23,6 +23,9 @@ func main() {
 
 	// http router with
 	router := httprouter.New()
+	router.GET("/", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		http.ServeFile(w, r, *bld)
+	})
 	graphqlHandler := http.HandlerFunc(handlers.GraphqlHandlerFunc)
 	router.POST("/graphql", handlers.DisableCors(graphqlHandler))
 	router.ServeFiles("/static/*filepath", http.Dir(*bld))

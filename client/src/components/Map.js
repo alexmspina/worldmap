@@ -37,6 +37,12 @@ function Map () {
     style: stylemap
   })
 
+  let newSatelliteLayer = L.geoJSON([], {
+    pointToLayer: function (feature, latlng) {
+      return L.circleMarker(latlng, stylesatellite)
+    }
+  })
+
   useEffect(() => {
     client.query({
       query: TargetsQuery
@@ -46,6 +52,15 @@ function Map () {
           pointToLayer: function (feature, latlng) {
             return L.circleMarker(latlng, styletarget)
           }
+        }).bindPopup(function (layer) {
+          return (
+            `
+            <div>
+              <h1>
+                ${layer.feature.properties.shortName}
+              </h1>
+            `
+          )
         })
 
         mapRef.current = L.map('map', {
@@ -69,19 +84,41 @@ function Map () {
       pollInterval: 1000
     })
 
-    const plotSats = (satellites) => {
-      const satellitesLayer = L.geoJSON(satellites, {
-        pointToLayer: function (feature, latlng) {
-          return L.circleMarker(latlng, stylesatellite)
-        }
-      })
+    const plotSats = (satellites, layer) => {
       if (mapRef.current !== null) {
-        mapRef.current.addLayer(satellitesLayer)
+        layer.clearLayers()
+        layer.addData(satellites)
+        layer.bindPopup(function (layer) {
+          return (
+            `
+            <div>
+              <h1>
+                ${layer.feature.properties.id}
+              </h1>
+              <div>
+                <h2>
+                  Longitude:
+                </h2>
+                ${Math.round(layer.feature.geometry.coordinates[0])}
+              </div>
+              <div>
+                <h2>
+                  Missions
+                </h2>
+                <div>
+                  ${layer.feature.properties.mission.map(mission => mission.beams.map(beam => beam.id))}
+                </div>
+              </div>
+            </div>
+            `
+          )
+        })
+        mapRef.current.addLayer(layer)
       }
     }
 
     satelliteQuery.subscribe({
-      next: (result) => plotSats(result.data.satelliteFeatureCollection)
+      next: (result) => plotSats(result.data.satelliteFeatureCollection, newSatelliteLayer)
     })
   }, [])
 
