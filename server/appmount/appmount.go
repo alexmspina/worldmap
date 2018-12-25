@@ -1,9 +1,7 @@
 package appmount
 
 import (
-	"flag"
 	"fmt"
-	"os"
 	"regexp"
 	"time"
 
@@ -52,15 +50,4 @@ func AppMount(t <-chan time.Time, dir *string) {
 // AppTicker global ticker for entire app
 func AppTicker(ticker <-chan *time.Ticker, sgp4sats map[string]satellite.Satellite) {
 
-}
-
-// ParseFlag takes a flag pointer to a string and parses it
-func ParseFlag(dir *string) {
-	flag.Parse()
-	if *dir == "No directory provided" {
-		fmt.Println("No directory provided for initial setup.")
-		os.Exit(1)
-	}
-
-	fmt.Println("Thank you for providing a directory.")
 }

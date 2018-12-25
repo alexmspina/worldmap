@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from 'react'
-import * as L from 'leaflet'
+import L from 'leaflet'
 
 // Map outline in form of geojson points
 import geoJSONmap from '../files/maps/geoJSONmap.json'
 
 // Style
+import 'leaflet/dist/leaflet.css'
 import stylecomponent from '../style/Map/Map.module.css'
 import stylemap from '../style/Map/stylemap'
 import styletarget from '../style/Targets/styletarget'
@@ -74,7 +75,9 @@ function Map () {
           return L.circleMarker(latlng, stylesatellite)
         }
       })
-      mapRef.current.addLayer(satellitesLayer)
+      if (mapRef.current !== null) {
+        mapRef.current.addLayer(satellitesLayer)
+      }
     }
 
     satelliteQuery.subscribe({

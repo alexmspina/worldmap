@@ -14,22 +14,17 @@ import (
 func main() {
 	// parse command-line flag to determine root directory location of necessary files
 	dir := flag.String("dir", "No data directory provided", "input the directory where the initial data files are located")
-	// bld := flag.String("bld", "No duild directory provided", "input the directory where the build files are located")
-
+	bld := flag.String("bld", "No duild directory provided", "input the directory where the build files are located")
 	flag.Parse()
 
+	// mount app
 	tickerChannel := time.NewTicker(time.Second).C
 	go appmount.AppMount(tickerChannel, dir)
 
-	graphqlHandler := http.HandlerFunc(handlers.GraphqlHandlerFunc)
+	// http router with
 	router := httprouter.New()
-
-	router.GET("/", handlers.Index)
+	graphqlHandler := http.HandlerFunc(handlers.GraphqlHandlerFunc)
 	router.POST("/graphql", handlers.DisableCors(graphqlHandler))
-	// router.ServeFiles(*bld, http.Dir("index.html"))
-
-	router.ServeFiles("/build/*filepath", http.Dir("static"))
-
+	router.ServeFiles("/static/*filepath", http.Dir(*bld))
 	log.Fatal(http.ListenAndServe(":8080", router))
-	// log.Fatal(http.ListenAndServe(":8080", http.FileServer(http.Dir(*bld))))
 }
