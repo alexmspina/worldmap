@@ -10,6 +10,7 @@ const TargetsQuery = gql`{
         coordinates,
       },
       properties {
+        gatewayFlag,
         shortName,
       },
     }
