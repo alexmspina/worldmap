@@ -2,12 +2,14 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/alexmspina/worldmap/server/appmount"
 	"github.com/alexmspina/worldmap/server/handlers"
+	"github.com/alexmspina/worldmap/server/helpers"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -21,13 +23,18 @@ func main() {
 	tickerChannel := time.NewTicker(time.Second).C
 	go appmount.AppMount(tickerChannel, dir)
 
+	// add index.html to bld directory
+	index := helpers.Join(*bld, "/index.html")
+	fmt.Println(index)
+	static := helpers.Join(*bld, "/static")
+
 	// http router with
 	router := httprouter.New()
 	router.GET("/", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-		http.ServeFile(w, r, *bld)
+		http.ServeFile(w, r, index)
 	})
 	graphqlHandler := http.HandlerFunc(handlers.GraphqlHandlerFunc)
 	router.POST("/graphql", handlers.DisableCors(graphqlHandler))
-	router.ServeFiles("/static/*filepath", http.Dir(*bld))
+	router.ServeFiles("/static/*filepath", http.Dir(static))
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

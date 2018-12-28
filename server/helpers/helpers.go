@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 // CreateRegexp creates a map of string keys and their regular expression counterpart values
@@ -94,4 +95,13 @@ func StringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
+}
+
+// Join combine strings
+func Join(strs ...string) string {
+	var sb strings.Builder
+	for _, str := range strs {
+		sb.WriteString(str)
+	}
+	return sb.String()
 }
