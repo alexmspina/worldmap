@@ -9,7 +9,7 @@ import 'leaflet/dist/leaflet.css'
 import stylecomponent from '../style/Map/Map.module.css'
 import stylemap from '../style/Map/stylemap'
 import styletarget from '../style/Targets/styletarget'
-// import stylesatellite from '../style/Satellites/stylesatellites'
+import stylecatseye from '../style/Zones/stylecatseye'
 import satelliteDivIcon from './../images/icons/satelliteSVG'
 import gatewayDivIcon from './../images/icons/gatewaySVG'
 
@@ -21,6 +21,7 @@ import { InMemoryCache } from 'apollo-cache-inmemory'
 // Queries
 import SatelliteQuery from './../queries/satelliteQuery'
 import TargetsQuery from './../queries/targetsQuery'
+import CatseyesQuery from './../queries/catseyeQuery'
 
 function Map () {
   const client = new ApolloClient({
@@ -33,6 +34,8 @@ function Map () {
 
   // create map reference
   const mapRef = useRef(null)
+
+  console.log('geojsonmap', geoJSONmap)
 
   // create map from geoJSON layer
   const maplayer = L.geoJSON(geoJSONmap, {
@@ -52,7 +55,6 @@ function Map () {
       .then(result => {
         const targetsLayer = L.geoJSON(result.data.targetFeatureCollection, {
           pointToLayer: function (feature, latlng) {
-            console.log(feature.properties)
             if (feature.properties.gatewayFlag === 'G') {
               const icon = gatewayDivIcon
               return L.marker(latlng, { icon: icon })
@@ -85,6 +87,22 @@ function Map () {
       .catch(error => console.error(error))
   }, [])
 
+  // useEffect(() => {
+  //   client.query({
+  //     query: CatseyesQuery
+  //   })
+  //     .then(result => {
+  //       console.log('catseye collection', result.data.catseyeFeatureCollection)
+  //       result.data.catseyeFeatureCollection.features.map(feature => {
+  //         const catseyeLayer = L.geoJSON(feature, {
+  //           style: stylecatseye
+  //         })
+  //         return mapRef.current.addLayer(catseyeLayer)
+  //       })
+  //     })
+  //     .catch(error => console.error(error))
+  // }, [])
+
   useEffect(() => {
     const satelliteQuery = client.watchQuery({
       query: SatelliteQuery,
@@ -110,7 +128,7 @@ function Map () {
               </div>
               <div>
                 <h2>
-                  Missions
+                  Beams
                 </h2>
                 <div>
                   ${layer.feature.properties.mission.map(mission => mission.beams.map(beam => beam.id))}
