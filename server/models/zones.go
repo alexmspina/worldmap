@@ -50,6 +50,32 @@ var CatseyeType = graphql.NewObject(graphql.ObjectConfig{
 	},
 })
 
+// CatseyeFeatureCollection struct modeling catseye feature geojson
+type CatseyeFeatureCollection struct {
+	Type     string           `json:"type"`
+	Features []CatseyeFeature `json:"features"`
+}
+
+// CatseyeFeatureCollectionType graphql object for catseye feature collections
+var CatseyeFeatureCollectionType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "CatseyeFeatureCollection",
+	Fields: graphql.Fields{
+		"type": &graphql.Field{
+			Type: graphql.String,
+		},
+		"features": &graphql.Field{
+			Type:        graphql.NewList(CatseyeType),
+			Description: "catseye features",
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+
+				s := params.Source.(CatseyeFeatureCollection)
+
+				return s.Features, nil
+			},
+		},
+	},
+})
+
 // ZoneFeature struct that models json object for zones
 type ZoneFeature struct {
 	Type       string         `json:"type"`
@@ -153,6 +179,8 @@ func FillCatseyesBucket() {
 			ComputeCoverageCircle(endPoint, centerPoint, "end", &catseyepoints)
 			ComputeCoverageCircle(startPoint, centerPoint, "start", &catseyepoints)
 
+			// lastPoint :=
+
 			cat := BuildCatseyeFeature(catseyepoints, z.Properties)
 			catseyes = append(catseyes, cat)
 			return nil
@@ -189,7 +217,7 @@ func BuildCatseyeFeature(c [][]float64, p ZoneProperties) CatseyeFeature {
 		c,
 	}
 	v := CatseyeFeature{
-		"Catseye",
+		"Feature",
 		g,
 		p,
 	}
@@ -249,8 +277,8 @@ func ComputeCoverageCircle(p []float64, c []float64, s string, l *[][]float64) {
 		lat := helpers.Rads2Degs(math.Asin(math.Sin(subSatLat)*math.Cos(centralAngle) + math.Cos(subSatLat)*math.Sin(centralAngle)*math.Cos(j)))
 		lng := helpers.Rads2Degs(subSatLng + math.Atan2(math.Sin(j)*math.Sin(centralAngle)*math.Cos(subSatLat), math.Cos(centralAngle)-math.Sin(subSatLat)*math.Sin(math.Asin(math.Sin(subSatLat)*math.Cos(centralAngle)+math.Cos(subSatLat)*math.Sin(centralAngle)*math.Cos(j)))))
 		point := []float64{
-			lat,
 			lng,
+			lat,
 		}
 
 		switch s {
@@ -318,4 +346,22 @@ func GetCatseye(s string) CatseyeFeature {
 	helpers.PanicErrors(err)
 
 	return catseyefeature
+}
+
+// GetAllCatseyes grabs all the catseyes from the CATSEYE bucket
+func GetAllCatseyes() []CatseyeFeature {
+	var catseyeFeatureList []CatseyeFeature
+	err := DB.Batch(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("DB")).Bucket([]byte("CATSEYES"))
+		b.ForEach(func(k, v []byte) error {
+			var catseyeFeature CatseyeFeature
+			json.Unmarshal(v, &catseyeFeature)
+			catseyeFeatureList = append(catseyeFeatureList, catseyeFeature)
+			return nil
+		})
+		return nil
+	})
+	helpers.PanicErrors(err)
+
+	return catseyeFeatureList
 }

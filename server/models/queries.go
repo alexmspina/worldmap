@@ -102,6 +102,18 @@ var RootQuery = graphql.NewObject(graphql.ObjectConfig{
 				return CatseyeFeature{}, nil
 			},
 		},
+		"catseyeFeatureCollection": &graphql.Field{
+			Type:        CatseyeFeatureCollectionType,
+			Description: "Get all targets and their properties",
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+				catseyes := GetAllCatseyes()
+				catseyeFeatureCollection := CatseyeFeatureCollection{
+					Type:     "FeatureCollection",
+					Features: catseyes,
+				}
+				return catseyeFeatureCollection, nil
+			},
+		},
 	},
 })
 
