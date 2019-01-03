@@ -171,13 +171,30 @@ func FillCatseyesBucket() {
 		b.ForEach(func(k, v []byte) error {
 			var z ZoneFeature
 			json.Unmarshal(v, &z)
-			centerPoint := []float64{0, z.Properties.CenterLng}
-			endPoint := []float64{0, z.Properties.StartLng}
-			startPoint := []float64{0, z.Properties.EndLng}
+
+			centerLng := z.Properties.CenterLng
+			startLng := z.Properties.StartLng
+			endLng := z.Properties.EndLng
+
+			if endLng < centerLng {
+				endLng = endLng + 360
+			}
+
+			if startLng > centerLng {
+				startLng = startLng - 360
+			}
+
+			startPoint := []float64{0, startLng}
+			centerPoint := []float64{0, centerLng}
+			endPoint := []float64{0, endLng}
+
+			fmt.Println("start", startPoint)
+			fmt.Println("center", centerPoint)
+			fmt.Println("end", endPoint)
 
 			catseyepoints := make([][]float64, 0)
-			ComputeCoverageCircle(endPoint, centerPoint, "end", &catseyepoints)
-			ComputeCoverageCircle(startPoint, centerPoint, "start", &catseyepoints)
+			ComputeCoverageCircle(startPoint, centerPoint, "end", &catseyepoints)
+			ComputeCoverageCircle(endPoint, centerPoint, "start", &catseyepoints)
 
 			// lastPoint :=
 
@@ -265,31 +282,39 @@ func buildZoneFeature(r []string) ZoneFeature {
 
 // ComputeCoverageCircle generate list of lat/lng points
 func ComputeCoverageCircle(p []float64, c []float64, s string, l *[][]float64) {
-	elevation := helpers.Degs2Rads(0)
+	elevation := helpers.Degs2Rads(10.0)
 	height := 8062000.0
-	earthRadius := 6378000.0
+	earthRadius := 6378135.0
 	subSatLat := helpers.Degs2Rads(p[0])
 	subSatLng := helpers.Degs2Rads(p[1])
-	centralAngle := math.Acos(math.Cos(elevation)/(1+height/earthRadius)) - elevation
+	centralAngle := math.Acos(math.Cos(elevation)/(1+(height/earthRadius))) - elevation
+	centralAngleDeg := helpers.Rads2Degs(centralAngle)
+	beamRadius := 2 * math.Pi * earthRadius * (centralAngleDeg / 360)
 
 	for i := 0; i < 360; i++ {
 		j := float64(i)
-		lat := helpers.Rads2Degs(math.Asin(math.Sin(subSatLat)*math.Cos(centralAngle) + math.Cos(subSatLat)*math.Sin(centralAngle)*math.Cos(j)))
-		lng := helpers.Rads2Degs(subSatLng + math.Atan2(math.Sin(j)*math.Sin(centralAngle)*math.Cos(subSatLat), math.Cos(centralAngle)-math.Sin(subSatLat)*math.Sin(math.Asin(math.Sin(subSatLat)*math.Cos(centralAngle)+math.Cos(subSatLat)*math.Sin(centralAngle)*math.Cos(j)))))
+		j = helpers.Degs2Rads(j)
+		latrad := math.Asin(math.Sin(subSatLat)*math.Cos(beamRadius/earthRadius) + math.Cos(subSatLat)*math.Sin(beamRadius/earthRadius)*math.Cos(j))
+		lngrad := subSatLng + math.Atan2(math.Cos(beamRadius/earthRadius)-math.Sin(subSatLat)*math.Sin(latrad), math.Sin(j)*math.Sin(beamRadius/earthRadius)*math.Cos(subSatLat))
+		latdeg := helpers.Rads2Degs(latrad)
+		lngdeg := helpers.Rads2Degs(lngrad)
 		point := []float64{
-			lng,
-			lat,
+			latdeg,
+			lngdeg,
 		}
 
 		switch s {
 		case "full":
 			*l = append(*l, point)
 		case "start":
-			if lng < c[1] {
+
+			if lngdeg > c[1] {
+				// fmt.Println("center", c[1], "start lng", lngdeg)
 				*l = append(*l, point)
 			}
 		case "end":
-			if lng > c[1] {
+			if lngdeg < c[1] {
+				// fmt.Println("center", c[1], "end lng", lngdeg)
 				*l = append(*l, point)
 			}
 		default:
