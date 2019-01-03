@@ -259,11 +259,11 @@ func buildZoneFeature(r []string) ZoneFeature {
 	CenterLng := helpers.ConvertStringToFloat64(r[3])
 	EndLng := helpers.ConvertStringToFloat64(r[4])
 
-	NewLngs := overLngWindow(StartLng, CenterLng, EndLng)
+	// NewLngs := overLngWindow(StartLng, CenterLng, EndLng)
 
-	StartLng = NewLngs[0]
-	CenterLng = NewLngs[1]
-	EndLng = NewLngs[2]
+	// StartLng = NewLngs[0]
+	// CenterLng = NewLngs[1]
+	// EndLng = NewLngs[2]
 
 	props := ZoneProperties{
 		Subregion: r[0],
@@ -325,6 +325,7 @@ func ComputeCoverageCircle(p []float64, c []float64, s string, l *[][]float64) {
 
 // GetCurrentZone determine which zone the satellite is currently servicing
 func GetCurrentZone(satlng float64) []string {
+	satlng = satlng + 0.6
 	var zoneid []string
 	err := DB.Batch(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("DB")).Bucket([]byte("ZONES"))
@@ -335,20 +336,11 @@ func GetCurrentZone(satlng float64) []string {
 			zoneendlng := zone.Properties.EndLng
 
 			// shift longitudes less than 0 to 0 - 360 range for easy zone placement
-			if zoneendlng < zonestartlng {
-				zoneendlng = zoneendlng + 360.0
-
-				if satlng < 0 {
-					satlngadjusted := satlng + 360.0
-
-					if satlngadjusted > zonestartlng && satlngadjusted < zoneendlng {
-						zoneid = append(zoneid, string(k))
-					}
-				}
-			} else {
-				if satlng > zonestartlng && satlng < zoneendlng {
-					zoneid = append(zoneid, string(k))
-				}
+			if satlng < 0 {
+				satlng = satlng + 360.0
+			}
+			if satlng > zonestartlng && satlng < zoneendlng {
+				zoneid = append(zoneid, string(k))
 			}
 			return nil
 		})

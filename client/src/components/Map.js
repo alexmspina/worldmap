@@ -94,8 +94,8 @@ function Map () {
   //     .then(result => {
   //       console.log('catseye collection', result.data.catseyeFeatureCollection)
   //       result.data.catseyeFeatureCollection.features.map(feature => {
-  //         const catseyeLayer = L.geoJSON(feature, {
-  //           style: stylecatseye
+  //         const catseyeLayer = L.polygon(feature.geometry.coordinates, {
+  //           color: 'red'
   //         })
   //         return mapRef.current.addLayer(catseyeLayer)
   //       })
@@ -124,7 +124,7 @@ function Map () {
                 <h2>
                   Longitude:
                 </h2>
-                ${Math.round(layer.feature.geometry.coordinates[0])}
+                ${Math.round(layer.feature.geometry.coordinates[0] * 100) / 100}
               </div>
               <div>
                 <h2>
@@ -138,6 +138,7 @@ function Map () {
             `
           )
         })
+        
         mapRef.current.addLayer(layer)
       }
     }
