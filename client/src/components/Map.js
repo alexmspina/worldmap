@@ -124,7 +124,7 @@ function Map () {
                 <h2>
                   Longitude:
                 </h2>
-                ${Math.round(layer.feature.geometry.coordinates[0] * 100) / 100}
+                ${Math.round((layer.feature.geometry.coordinates[0] * 100)) / 100}
               </div>
               <div>
                 <h2>
@@ -138,7 +138,7 @@ function Map () {
             `
           )
         })
-        
+
         mapRef.current.addLayer(layer)
       }
     }

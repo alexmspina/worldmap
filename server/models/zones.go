@@ -325,8 +325,8 @@ func ComputeCoverageCircle(p []float64, c []float64, s string, l *[][]float64) {
 
 // GetCurrentZone determine which zone the satellite is currently servicing
 func GetCurrentZone(satlng float64) []string {
-	satlng = satlng + 0.6
 	var zoneid []string
+	var satlngadjusted float64
 	err := DB.Batch(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("DB")).Bucket([]byte("ZONES"))
 		b.ForEach(func(k, v []byte) error {
@@ -335,13 +335,28 @@ func GetCurrentZone(satlng float64) []string {
 			zonestartlng := zone.Properties.StartLng
 			zoneendlng := zone.Properties.EndLng
 
-			// shift longitudes less than 0 to 0 - 360 range for easy zone placement
-			if satlng < 0 {
-				satlng = satlng + 360.0
+			if satlng < 0.0 {
+				satlngadjusted = satlng + 360.0
+			} else {
+				satlngadjusted = satlng
 			}
-			if satlng > zonestartlng && satlng < zoneendlng {
-				zoneid = append(zoneid, string(k))
+
+			if zonestartlng > zoneendlng {
+				zoneendlng = zoneendlng + 360.0
+
+				if zoneendlng > 360.0 {
+					satlngadjusted = satlng + 360
+				}
+
+				if satlngadjusted > zonestartlng && satlngadjusted < zoneendlng {
+					zoneid = append(zoneid, string(k))
+				}
+			} else {
+				if satlngadjusted > zonestartlng && satlngadjusted < zoneendlng {
+					zoneid = append(zoneid, string(k))
+				}
 			}
+
 			return nil
 		})
 		return nil
