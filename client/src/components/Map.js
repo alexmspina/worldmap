@@ -111,6 +111,10 @@ function Map () {
 
     const plotSats = (satellites, layer) => {
       if (mapRef.current !== null) {
+        // layer._layers.map(sat => {
+        //   return console.log(sat.feature.properties.id)
+        // })
+        // console.log(layer._layers.map(sat ))
         layer.clearLayers()
         layer.addData(satellites)
         layer.bindPopup(function (layer) {

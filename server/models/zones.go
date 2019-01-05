@@ -188,13 +188,13 @@ func FillCatseyesBucket() {
 			centerPoint := []float64{0, centerLng}
 			endPoint := []float64{0, endLng}
 
-			fmt.Println("start", startPoint)
-			fmt.Println("center", centerPoint)
-			fmt.Println("end", endPoint)
+			// fmt.Println("start", startPoint)
+			// fmt.Println("center", centerPoint)
+			// fmt.Println("end", endPoint)
 
 			catseyepoints := make([][]float64, 0)
-			ComputeCoverageCircle(startPoint, centerPoint, "end", &catseyepoints)
-			ComputeCoverageCircle(endPoint, centerPoint, "start", &catseyepoints)
+			ComputeCoverageCircle(startPoint, centerPoint, "start", &catseyepoints)
+			ComputeCoverageCircle(endPoint, centerPoint, "end", &catseyepoints)
 
 			// lastPoint :=
 
@@ -289,7 +289,7 @@ func ComputeCoverageCircle(p []float64, c []float64, s string, l *[][]float64) {
 	subSatLng := helpers.Degs2Rads(p[1])
 	centralAngle := math.Acos(math.Cos(elevation)/(1+(height/earthRadius))) - elevation
 	centralAngleDeg := helpers.Rads2Degs(centralAngle)
-	beamRadius := 2 * math.Pi * earthRadius * (centralAngleDeg / 360)
+	beamRadius := 2.0 * math.Pi * earthRadius * (centralAngleDeg / 360.0)
 
 	for i := 0; i < 360; i++ {
 		j := float64(i)
